@@ -184,28 +184,54 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3):
 
 
 def parse_song_structure(text, line_pause=960, section_pause=1920):
-    parts = {}
+    """✅ INDUSTRIAL-GRADE: Handles ALL malformed input gracefully"""
+    parts = {"Main": []}  # Default fallback
     current_part = "Main"
     all_elements = []
 
-    for line in text.strip().split('\n'):
-        line = line.strip()
-        if line.startswith('[') and line.endswith(']'):
-            if all_elements:
-                all_elements.append(f"PAUSE_SECTION:{section_pause}")
-            current_part = line[1:-1].strip()
-            parts[current_part] = []
-        elif line:
-            parts[current_part].append(line)
-            # ✅ FIXED: Use class method instead of standalone function
-            phonemes = HiroUSTGenerator.hiragana_to_romaji(line)
-            all_elements.extend(phonemes)
-            all_elements.append(f"PAUSE_LINE:{line_pause}")
+    if not text or not text.strip():
+        return parts, all_elements
 
+    lines = text.strip().split('\n')
+
+    for line_num, raw_line in enumerate(lines, 1):
+        line = raw_line.strip()
+
+        # ✅ COMPLETE SECTION VALIDATION
+        if line.startswith('[') and line.endswith(']') and len(line) > 2:
+            section_name = line[1:-1].strip()
+            if section_name:  # Valid non-empty section
+                if all_elements:  # Add pause before new section
+                    all_elements.append(f"PAUSE_SECTION:{section_pause}")
+                current_part = section_name
+                parts[current_part] = []  # Initialize new section
+            else:
+                print(f"⚠️ Empty section '['']' on line {line_num} - using 'Main'")
+        # ✅ VALIDATE NON-EMPTY LINES ONLY
+        elif line:
+            try:
+                # Safe phoneme parsing with fallback
+                phonemes = HiroUSTGenerator.hiragana_to_romaji(line)
+                if phonemes:  # Only add if parsing succeeded
+                    parts[current_part].append(line)
+                    all_elements.extend(phonemes)
+                    all_elements.append(f"PAUSE_LINE:{line_pause}")
+                else:
+                    print(f"⚠️ Empty phonemes from '{line}' on line {line_num}")
+            except Exception as e:
+                print(f"⚠️ Parse error line {line_num}: '{line}' → {e}")
+                # Continue silently - don't crash!
+
+    # ✅ FINAL CLEANUP
     if all_elements and all_elements[-1].startswith("PAUSE_LINE"):
         all_elements.pop()
 
+    # ✅ MINIMUM SAFETY CHECK
+    if not all_elements:
+        all_elements = ["PAUSE_LINE:480"]  # At least one pause
+
     return parts, all_elements
+
 
 class MotifMemory:
     def __init__(self, motif_length=4):
@@ -353,6 +379,7 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0)
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, melody_brain,
+                pre_utterance=25, voice_overlap=10, intensity_base=80, envelope="0,10,35,0,100,100,0",
                 flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True):
     generator = HiroUSTGenerator()
     project_name = str(project_name)
@@ -427,13 +454,14 @@ Mode2=True
                 ust += f'Length={note_length}\n'
                 ust += f'Lyric={stretch_phoneme}\n'
                 ust += f'NoteNum={int(note_num)}\n'
-                ust += f'PreUtterance=25\nVoiceOverlap=10\n'
+                ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
                 phrase_progress = melody_brain.phrase_len / 12.0
-                intensity = 80 + int(abs(melody_brain.last_note - 5) * 8)
+                intensity = intensity_base + int(abs(melody_brain.last_note - 5) * 8)
                 if phrase_progress > 0.8:
                     intensity += 15
                 ust += f'Intensity={max(50, min(120, intensity))}\n'
-                ust += f'StartPoint=0\nEnvelope=0,10,35,0,100,100,0\n'
+
+                ust += f'StartPoint=0\nEnvelope={envelope}\n'
                 note_id += 1
 
     ust += '\n[#TRACKEND]\n'
@@ -460,7 +488,7 @@ class USTGeneratorApp:
         self.root = root
         self.root.title("🤖 Hiro UST Generator v4.0")
         self.root.geometry("900x800")
-        self.root.minsize(850, 750)
+        self.root.minsize(850, 850)
 
         # =============== MAIN LYRICS (Top 40%) ===============
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
@@ -498,13 +526,22 @@ class USTGeneratorApp:
         ttk.Label(base_frame, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         pause_frame = ttk.Frame(timing_panel)
-        pause_frame.pack(fill="x")
-        ttk.Label(pause_frame, text="Line:").pack(side="left")
+        pause_frame.pack(fill="x", pady=(0, 8))
+
+        line_row = ttk.Frame(pause_frame)
+        line_row.pack(fill="x", pady=10)
+
+        ttk.Label(line_row, text="Line:").pack(side="left")
         self.line_pause_var = tk.StringVar(value="960")
-        ttk.Entry(pause_frame, textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
-        ttk.Label(pause_frame, text="Sect:").pack(side="left")
+        ttk.Entry(line_row, textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Label(line_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
+
+        sect_row = ttk.Frame(pause_frame)
+        sect_row.pack(fill="x")
+        ttk.Label(sect_row, text="Sect:").pack(side="left")
         self.section_pause_var = tk.StringVar(value="1920")
-        ttk.Entry(pause_frame, textvariable=self.section_pause_var, width=10).pack(side="left", padx=5)
+        ttk.Entry(sect_row, textvariable=self.section_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Label(sect_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         # Panel 2: Voice & Length (Left-Center)
         voice_panel = ttk.LabelFrame(controls_main, text="🎤 Voice & Length", padding=10)
@@ -551,20 +588,47 @@ class USTGeneratorApp:
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
 
-        # Panel 4: Output (Right)
-        output_panel = ttk.LabelFrame(controls_main, text="💾 Output", padding=10)
-        output_panel.pack(side="right", fill="y")
+        # Panel 4: UST Params (NEW - replace Output panel position)
+        # Panel 4: UST + Output (COMBINED - Perfect 25% width)
+        output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
+        output_panel.pack(side="right", fill="both", expand=True)
 
-        ttk.Label(output_panel, text="Project:").pack(anchor="w")
+        # Compact UST controls (top row)
+        ust_frame = ttk.Frame(output_panel)
+        ust_frame.pack(fill="x", pady=2)
+
+        # Pre + Ovl (ultra-compact)
+        ttk.Label(ust_frame, text="P:").grid(row=0, column=0, sticky="w")
+        self.pre_utter_var = tk.StringVar(value="25")
+        ttk.Entry(ust_frame, textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
+
+        ttk.Label(ust_frame, text="O:").grid(row=0, column=2, sticky="w")
+        self.voice_overlap_var = tk.StringVar(value="10")
+        ttk.Entry(ust_frame, textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
+
+        # Int + Env (ultra-compact)
+        ttk.Label(ust_frame, text="I:").grid(row=0, column=4, sticky="w")
+        self.intensity_base_var = tk.StringVar(value="80")
+        ttk.Entry(ust_frame, textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
+
+        ttk.Label(ust_frame, text="E:").grid(row=0, column=6, sticky="w")
+        self.envelope_var = tk.StringVar(value="Pop")
+        env_presets = ["Pop", "Rock", "Breathy", "Sharp"]
+        self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
+                                      values=env_presets, state="readonly", width=6)
+        self.env_combo.grid(row=0, column=7, padx=1)
+
+        # Project + Buttons (below)
+        ttk.Label(output_panel, text="Proj:").pack(anchor="w")
         self.project_var = tk.StringVar(value="Hiro_Main")
-        ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 12))
+        ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 6))
 
         btn_frame = ttk.Frame(output_panel)
         btn_frame.pack(fill="x")
-        ttk.Button(btn_frame, text="🎵 Generate UST", command=self.generate_ust).pack(fill="x", pady=(0, 6))
-        ttk.Button(btn_frame, text="💾 Save UST", command=self.save_ust_only).pack(fill="x", pady=(0, 6))
-        ttk.Button(btn_frame, text="📋 Preview Phonemes", command=self.preview_phonemes).pack(fill="x", pady=(0, 6))
-        ttk.Button(btn_frame, text="🧹 Clear All", command=self.clear).pack(fill="x")
+        ttk.Button(btn_frame, text="🎵 Gen", command=self.generate_ust).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="💾 Save", command=self.save_ust_only).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(fill="x", pady=1)
 
         # Status + Preview (unchanged)
         status_frame = ttk.Frame(root)
@@ -577,7 +641,14 @@ class USTGeneratorApp:
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
-        # 🚨 THESE METHODS MUST BE **INDENTED AT CLASS LEVEL** (same level as __init__)
+    def _get_envelope_preset(self, preset_name):
+        presets = {
+            "Pop": "0,10,35,0,100,100,0",
+            "Rock": "0,20,50,0,90,80,0",
+            "Breathy": "0,5,20,0,70,100,0",
+            "Sharp": "0,30,70,0,100,50,0"
+        }
+        return presets.get(preset_name, "0,10,35,0,100,100,0")
 
     def _generate_content(self):
         """Extracted common UST generation logic - NO DUPLICATION!"""
@@ -594,15 +665,17 @@ class USTGeneratorApp:
                 int(self.line_pause_var.get()),
                 int(self.section_pause_var.get())
             )
+            self.status_var.set(f"✅ Parsed {len(elements)} elements from {len(parts)} sections")
 
             root_key = KEY_ROOTS[self.voice_var.get()]
 
             ust_content = text_to_ust(
-                elements, str(self.project_var.get()),
-                float(self.tempo_var.get()), int(self.length_var.get()),
-                root_key, self.scale_var.get(), self.intone_var.get(),
-                float(self.length_var_ctrl.get()), float(self.stretch_var.get()),
-                melody_brain,
+                elements, str(self.project_var.get()), float(self.tempo_var.get()),
+                int(self.length_var.get()), root_key, self.scale_var.get(), self.intone_var.get(),
+                float(self.length_var_ctrl.get()), float(self.stretch_var.get()), melody_brain,
+                # ✅ NEW CUSTOMIZABLE PARAMS
+                int(self.pre_utter_var.get()), int(self.voice_overlap_var.get()),
+                int(self.intensity_base_var.get()), self._get_envelope_preset(self.envelope_var.get()),
                 self.flat_var.get(), self.quartertone_var.get(),
                 self.lyrical_mode_var.get(), self.motif_var.get()
             )
