@@ -33,7 +33,7 @@ SCALES = {
 }
 
 
-class KanaUSTGenerator:
+class HiroUSTGenerator:
     def __init__(self):
         self.hiragana_map = {
             # Vowels
@@ -112,7 +112,7 @@ class KanaUSTGenerator:
             return self.hiragana_map[phoneme]
         return phoneme  # Fallback
 
-def kana_to_romaji(text):
+def hiragana_to_romaji(text):
     # COMPLETE Japanese mora → phoneme mapping
     mora_map = {
         # Sokuon (small tsu)
@@ -231,7 +231,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
             parts[current_part] = []
         elif line:
             parts[current_part].append(line)
-            phonemes = kana_to_romaji(line)
+            phonemes = hiragana_to_romaji(line)
             all_elements.extend(phonemes)
             all_elements.append(f"PAUSE_LINE:{line_pause}")
 
@@ -240,76 +240,122 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
     return parts, all_elements
 
+class MotifMemory:
+    def __init__(self, motif_length=4):
+        self.motif_length = motif_length  # 3-5 notes
+        self.stored_motifs = []  # List of [note1, note2, note3, note4]
+        self.max_motifs = 5
+
+    def add_motif(self, notes):
+        """Store recent notes as motif"""
+        if len(notes) >= self.motif_length:
+            motif = notes[-self.motif_length:]  # Last N notes
+            # Avoid duplicate motifs
+            if motif not in self.stored_motifs:
+                self.stored_motifs.append(motif)
+                # Keep only top 5 motifs
+                if len(self.stored_motifs) > self.max_motifs:
+                    self.stored_motifs.pop(0)
+
+    def get_motif_note(self, current_note, scale, use_motif_prob=0.4):
+        """Get note from motif memory OR new note"""
+        if (self.stored_motifs and
+                random.random() < use_motif_prob and
+                len(self.stored_motifs[-1]) > 1):
+
+            # 🎵 REUSE MOTIF WITH VARIATION
+            motif = self.stored_motifs[-1]
+            next_in_motif = motif[1:]  # Shift motif forward
+
+            # Variation: ±1 semitone with 50% chance
+            if random.random() < 0.5:
+                varied_note = next_in_motif[0] + random.choice([-1, 0, 1])
+                target_note = min(max(0, varied_note), 11)
+            else:
+                target_note = next_in_motif[0]
+
+            # Snap to scale
+            closest_scale = min(scale, key=lambda x: abs(x - target_note))
+            return closest_scale
+
+        # No motif: regular melodic note
+        melodic_notes = [0, 2, 4, 5, 7, 9]  # Scale degrees
+        return random.choice(melodic_notes)
+
+    def debug_motifs(self):
+        """Show stored motifs for preview"""
+        if not self.stored_motifs:
+            return "No motifs stored"
+        return " | ".join([f"[{','.join(map(str, m))}]" for m in self.stored_motifs])
 
 class MelodyBrain:
     def __init__(self):
         self.last_note = 0
         self.phrases = []
         self.phrase_len = 0
+        self.recent_notes = []
+        self.motif_memory = MotifMemory(motif_length=4)
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
-                       quarter_tone=False):
+                       quarter_tone=False, use_motifs=True):
         scale = SCALES[scale_name]
         self.phrase_len += 1
 
-        # Intone settings
-        intone_map = {
-            "Tight (1)": {"leap": 1, "phrase": 6},
-            "Medium (2)": {"leap": 2, "phrase": 8},
-            "Wide (3)": {"leap": 3, "phrase": 10},
-            "Wild (5)": {"leap": 5, "phrase": 12}
-        }
-        settings = intone_map.get(intone_level, intone_map["Tight (1)"])
+        settings = self._get_intone_settings(intone_level)
 
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
 
-        # 🎵 ENHANCED PHRASE ENDINGS
+        # Store recent notes for motif detection
+        self.recent_notes.append(self.last_note)
+        if len(self.recent_notes) > 8:
+            self.recent_notes.pop(0)
+            self.motif_memory.add_motif(self.recent_notes)  # Learn motif
+
+        # 🎵 PHRASE ENDINGS first
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
-
-            # PERFECT CADENCE: End on tonic (0) or dominant (7)
-            if random.random() < 0.7:  # 70% perfect cadence
-                self.last_note = 0  # Tonic resolution (C in C major)
-            else:
-                self.last_note = 7  # Dominant (G) for half-cadence
-            self.phrase_len = 1  # Reset phrase
+            self.last_note = random.choice([0, 7])  # Tonic or dominant
+            self.phrase_len = 1
             target_note = self.last_note
-
         else:
-            # MOTIF MEMORY + regular logic
-            if len(self.phrases) > 2 and random.random() < 0.3:
-                motif_note = self.phrases[-2] + random.choice([-1, 0, 1])
-                target_note = min(max(0, motif_note), 11)
-            elif is_vowel:
-                # VOWELS: Higher melodic range
-                high_notes = scale[-3:]
-                target_note = random.choice([4, 7] + high_notes)
-            elif is_stretch:
-                target_note = self.last_note
+            # 🎵 MOTIF MEMORY (toggleable!)
+            if use_motifs:
+                target_note = self.motif_memory.get_motif_note(
+                    self.last_note, scale, use_motif_prob=0.4)
             else:
-                # CONSONANTS: Stepwise motion
-                cons_notes = [0, 2, 4, 7]
-                if settings["leap"] > 2: cons_notes.extend([9, 11])
-                target_note = random.choice(cons_notes)
+                # Original logic
+                if is_vowel:
+                    high_notes = scale[-3:]
+                    target_note = random.choice([4, 7] + high_notes)
+                elif is_stretch:
+                    target_note = self.last_note
+                else:
+                    cons_notes = [0, 2, 4, 7]
+                    if settings["leap"] > 2: cons_notes.extend([9, 11])
+                    target_note = random.choice(cons_notes)
 
-        # 🎵 VOICE LEADING (smooth motion)
+        # Voice leading + snap to scale
         max_leap = settings["leap"]
         motion = max(-max_leap, min(max_leap, target_note - self.last_note))
         new_note = self.last_note + motion
-
-        # Snap to nearest scale degree
         closest_scale_note = min(scale, key=lambda x: abs(x - new_note))
         self.last_note = closest_scale_note
 
-        # Quarter-tone inflection (vowels only)
         if quarter_tone and random.random() < 0.3 and is_vowel:
             self.last_note += random.choice([0, 0.5, -0.5])
 
         if flat_mode:
             return root_midi + 0
-
         return root_midi + self.last_note
+
+    def _get_intone_settings(self, intone_level):
+        return {
+            "Tight (1)": {"leap": 1, "phrase": 6},
+            "Medium (2)": {"leap": 2, "phrase": 8},
+            "Wide (3)": {"leap": 3, "phrase": 10},
+            "Wild (5)": {"leap": 5, "phrase": 12}
+        }.get(intone_level, {"leap": 1, "phrase": 6})
 
     def get_intensity(self, note_height, phrase_progress):
         base = 80 + int(abs(note_height - 5) * 8)
@@ -341,8 +387,8 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0)
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, flat_mode=False,
-                quartertone_mode=False, lyrical_mode=True):
-    generator = KanaUSTGenerator()
+                quartertone_mode=False, lyrical_mode=True, use_motifs=True):
+    generator = HiroUSTGenerator()
     project_name = str(project_name)
 
     ust = f'''[#VERSION]
@@ -393,9 +439,8 @@ Mode2=True
 
                 if lyrical_mode:
                     note_num = melody_brain.get_smart_note(
-                        root_key, scale, stretch_phoneme,
-                        intone_level,
-                        flat_mode, quartertone_mode)
+                        root_key, scale, stretch_phoneme, intone_level,
+                        flat_mode, quartertone_mode, use_motifs)
                 else:
                     note_num = get_random_note(root_key, scale, intone_level, flat_mode, quartertone_mode)
 
@@ -456,10 +501,10 @@ class USTGeneratorApp:
         row1 = ttk.Frame(controls_frame)
         row1.pack(fill="x", pady=(0, 5))
         ttk.Label(row1, text="Tempo:").pack(side="left")
-        self.tempo_var = tk.StringVar(value="240.00")
+        self.tempo_var = tk.StringVar(value="120.00")
         ttk.Entry(row1, textvariable=self.tempo_var, width=8).pack(side="left", padx=(5, 20))
         ttk.Label(row1, text="Base Length:").pack(side="left")
-        self.length_var = tk.StringVar(value="480")
+        self.length_var = tk.StringVar(value="240")
         ttk.Entry(row1, textvariable=self.length_var, width=8).pack(side="left", padx=5)
 
         row2 = ttk.Frame(controls_frame)
@@ -489,6 +534,9 @@ class USTGeneratorApp:
         self.scale_var = ttk.Combobox(row4, values=list(SCALES.keys()), state="readonly", width=12)
         self.scale_var.set("Major Pentatonic")
         self.scale_var.pack(side="left", padx=(5, 10))
+
+        self.motif_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(row4, text="🎼 Motif Memory", variable=self.motif_var).pack(side="left", padx=5)
 
         # Intonation slider + dropdown
         ttk.Label(row4, text="Intone:").pack(side="left")
@@ -529,7 +577,7 @@ class USTGeneratorApp:
         preview = "\n\n"
         for i, elem in enumerate(elements[:20]):  # First 20
             if not elem.startswith('PAUSE'):
-                preview += f"{i}: {elem} → {KanaUSTGenerator().romaji_to_hiragana(elem)}\n"
+                preview += f"{i}: {elem} → {HiroUSTGenerator().romaji_to_hiragana(elem)}\n"
         self.preview_text.config(state="normal")
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.insert("1.0", preview)
@@ -548,7 +596,7 @@ class USTGeneratorApp:
 
             ust_content = text_to_ust(
                 elements,  # 1
-                str(self.project_var.get()),  # 2 ✅ FIXED
+                str(self.project_var.get()),  # 2
                 float(self.tempo_var.get()),  # 3
                 int(self.length_var.get()),  # 4
                 int(self.root_var.get()),  # 5
@@ -558,7 +606,8 @@ class USTGeneratorApp:
                 float(self.stretch_var.get()),  # 9
                 self.flat_var.get(),  # 10
                 self.quartertone_var.get(),  # 11
-                self.lyrical_mode_var.get()  # 12 ✅ Matches function signature
+                self.lyrical_mode_var.get(),  # 12
+                self.motif_var.get()
             )
 
             filename = f"{str(self.project_var.get()).replace(' ', '_')}.ust"
