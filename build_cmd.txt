@@ -1,0 +1,1 @@
+pyinstaller --onefile --windowed --name "HiroUSTGenerator" hiro_ust.py
