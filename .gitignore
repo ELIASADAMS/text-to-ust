@@ -1,3 +1,4 @@
 *.ust
 /Debug
 /.idea
+*.ustx
