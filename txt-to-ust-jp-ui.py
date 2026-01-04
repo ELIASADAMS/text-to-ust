@@ -92,11 +92,17 @@ class KanaUSTGenerator:
         if phoneme == 'tsutsu':
             return 'っつ'
 
+        # Long vowel support
+        if len(phoneme) >= 2 and phoneme[1] in 'aiueo':
+            base = phoneme[0]
+            if base in self.hiragana_map:
+                return self.hiragana_map[base] * 2  # ああ, いい, etc.
+
         # Special sokuon combos
         sokuon_combos = {
-            'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく',
-            'ketsu': 'っけ', 'kotsu': 'っこ', 'tatsu': 'った',
-            'chitsu': 'っち', 'setsu': 'っせ', 'sotsu': 'っそ'
+            'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく', 'ketsu': 'っけ', 'kotsu': 'っこ',
+            'tatsu': 'った', 'chitsu': 'っち', 'setsu': 'っせ', 'sotsu': 'っそ', 'tsutsu': 'っつ',
+            'tta': 'った', 'ppa': 'っぱ', 'mma': 'っま', 'nna': 'んな', 'ssa': 'っさ'
         }
 
         if phoneme in sokuon_combos:
@@ -105,7 +111,6 @@ class KanaUSTGenerator:
         if phoneme in self.hiragana_map:
             return self.hiragana_map[phoneme]
         return phoneme  # Fallback
-
 
 def kana_to_romaji(text):
     # COMPLETE Japanese mora → phoneme mapping
@@ -204,6 +209,8 @@ def kana_to_romaji(text):
 
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3):
+    if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in 'あいうえお':
+        return [(phoneme[0], 1.8)]  # Single long note
     if random.random() < stretch_prob and len(phoneme) == 1 and phoneme in 'あいうえお':
         stretches = random.randint(1, max_stretch)
         return [(phoneme, 1.2)] + [('+', 0.8)] * stretches
@@ -245,55 +252,70 @@ class MelodyBrain:
         scale = SCALES[scale_name]
         self.phrase_len += 1
 
-        # ✅ NEW: Intone level mapping
+        # Intone settings
         intone_map = {
-            "Tight (1)": {"leap": 1, "phrase": 6},  # Small steps, short phrases
-            "Medium (2)": {"leap": 2, "phrase": 8},  # Medium motion
-            "Wide (3)": {"leap": 3, "phrase": 10},  # Bigger jumps
-            "Wild (5)": {"leap": 5, "phrase": 12}  # Crazy leaps!
+            "Tight (1)": {"leap": 1, "phrase": 6},
+            "Medium (2)": {"leap": 2, "phrase": 8},
+            "Wide (3)": {"leap": 3, "phrase": 10},
+            "Wild (5)": {"leap": 5, "phrase": 12}
         }
         settings = intone_map.get(intone_level, intone_map["Tight (1)"])
 
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
 
-        # 2. PHRASE STRUCTURE (uses Intone!)
+        # 🎵 ENHANCED PHRASE ENDINGS
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
-            target_note = random.choice([0, 4])
-            self.phrase_len = 0
+
+            # PERFECT CADENCE: End on tonic (0) or dominant (7)
+            if random.random() < 0.7:  # 70% perfect cadence
+                self.last_note = 0  # Tonic resolution (C in C major)
+            else:
+                self.last_note = 7  # Dominant (G) for half-cadence
+            self.phrase_len = 1  # Reset phrase
+            target_note = self.last_note
+
         else:
-            if is_vowel:
-                # VOWELS: Higher range (Intone affects octave choice)
-                octave_note = scale[-1] if random.random() < 0.7 else random.choice(scale[2:])
-                target_note = random.choice([4, 7, octave_note])
+            # MOTIF MEMORY + regular logic
+            if len(self.phrases) > 2 and random.random() < 0.3:
+                motif_note = self.phrases[-2] + random.choice([-1, 0, 1])
+                target_note = min(max(0, motif_note), 11)
+            elif is_vowel:
+                # VOWELS: Higher melodic range
+                high_notes = scale[-3:]
+                target_note = random.choice([4, 7] + high_notes)
             elif is_stretch:
                 target_note = self.last_note
             else:
-                # CONSONANTS: Stepping stones (Intone affects range)
-                cons_notes = [0, 2, 7]
-                if settings["leap"] > 2: cons_notes.append(9)
+                # CONSONANTS: Stepwise motion
+                cons_notes = [0, 2, 4, 7]
+                if settings["leap"] > 2: cons_notes.extend([9, 11])
                 target_note = random.choice(cons_notes)
 
-        # 3. SMOOTH VOICE LEADING (Intone controls leap size!)
+        # 🎵 VOICE LEADING (smooth motion)
         max_leap = settings["leap"]
         motion = max(-max_leap, min(max_leap, target_note - self.last_note))
         new_note = self.last_note + motion
 
-        # 4. SNAP TO SCALE
+        # Snap to nearest scale degree
         closest_scale_note = min(scale, key=lambda x: abs(x - new_note))
         self.last_note = closest_scale_note
 
-        # 5. MICROTONAL
+        # Quarter-tone inflection (vowels only)
         if quarter_tone and random.random() < 0.3 and is_vowel:
             self.last_note += random.choice([0, 0.5, -0.5])
 
         if flat_mode:
-            self.last_note = 0
             return root_midi + 0
 
         return root_midi + self.last_note
 
+    def get_intensity(self, note_height, phrase_progress):
+        base = 80 + int(abs(note_height - 5) * 8)
+        if phrase_progress > 0.8:
+            base += 15
+        return max(50, min(120, base))
 
 # Global melody brain
 melody_brain = MelodyBrain()
@@ -352,6 +374,9 @@ Mode2=True
             pause_length = int(element.split(":")[1])
             num_rests = pause_length // 480
             for _ in range(num_rests):
+                phrase_progress = melody_brain.phrase_len / 12.0
+                intensity = melody_brain.get_intensity(melody_brain.last_note, melody_brain.phrase_len / 12.0)
+                ust += f'Intensity={intensity}\n'
                 ust += f'\n[#{note_id:04d}]\n'
                 ust += f'Length=480\nLyric=R\nNoteNum=60\nPreUtterance=0\n'
                 ust += f'VoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
@@ -379,7 +404,12 @@ Mode2=True
                 ust += f'Lyric={stretch_phoneme}\n'
                 ust += f'NoteNum={int(note_num)}\n'
                 ust += f'PreUtterance=25\nVoiceOverlap=10\n'
-                ust += f'Intensity=100\nModulation=0\nPBS=-40\nPBW=80\n'
+                # Fixed dynamic intensity
+                phrase_progress = melody_brain.phrase_len / 12.0
+                intensity = 80 + int(abs(melody_brain.last_note - 5) * 8)
+                if phrase_progress > 0.8:
+                    intensity += 15
+                ust += f'Intensity={max(50, min(120, intensity))}\n'
                 ust += f'StartPoint=0\nEnvelope=0,10,35,0,100,100,0\n'
                 note_id += 1
 
@@ -542,6 +572,7 @@ class USTGeneratorApp:
             self.preview_text.config(state="disabled")
         except Exception as e:
             self.status_var.set(f"❌ Error: {str(e)}")
+
 
     def clear(self):
         self.lyrics_text.delete("1.0", tk.END)
