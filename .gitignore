@@ -2,3 +2,5 @@
 /Debug
 /.idea
 *.ustx
+/build
+/dist
