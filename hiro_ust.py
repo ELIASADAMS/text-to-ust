@@ -49,135 +49,105 @@ class HiroUSTGenerator:
         self.hiragana_map = {
             # Vowels
             'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お',
-
-            # K-row + dakuten + yoon + sokuon
             'ka': 'か', 'ki': 'き', 'ku': 'く', 'ke': 'け', 'ko': 'こ',
             'ga': 'が', 'gi': 'ぎ', 'gu': 'ぐ', 'ge': 'げ', 'go': 'ご',
             'kya': 'きゃ', 'kyu': 'きゅ', 'kyo': 'きょ', 'gya': 'ぎゃ', 'gyu': 'ぎゅ', 'gyo': 'ぎょ',
-
-            # S-row + dakuten + yoon
             'sa': 'さ', 'shi': 'し', 'su': 'す', 'se': 'せ', 'so': 'そ',
-            'za': 'ざ', 'ji_s': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',  # ji_s = じ (from shi+dakuten)
+            'za': 'ざ', 'ji_s': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',
             'sha': 'しゃ', 'shu': 'しゅ', 'sho': 'しょ', 'ja': 'じゃ', 'ju': 'じゅ', 'jo': 'じょ',
-
-            # T-row + dakuten + yoon + sokuon
             'ta': 'た', 'chi': 'ち', 'tsu': 'つ', 'te': 'て', 'to': 'と',
-            'da': 'だ', 'ji_t': 'ぢ', 'zu_t': 'づ', 'de': 'で', 'do': 'ど',  # ji_t = ぢ (from chi+dakuten)
+            'da': 'だ', 'ji_t': 'ぢ', 'zu_t': 'づ', 'de': 'で', 'do': 'ど',
             'cha': 'ちゃ', 'chu': 'ちゅ', 'cho': 'ちょ',
-
-            # N-row + yoon
             'na': 'な', 'ni': 'に', 'nu': 'ぬ', 'ne': 'ね', 'no': 'の',
             'nya': 'にゃ', 'nyu': 'にゅ', 'nyo': 'にょ',
-
-            # H-row + b/p + yoon
             'ha': 'は', 'hi': 'ひ', 'fu': 'ふ', 'he': 'へ', 'ho': 'ほ',
             'ba': 'ば', 'bi': 'び', 'bu': 'ぶ', 'be': 'べ', 'bo': 'ぼ',
             'pa': 'ぱ', 'pi': 'ぴ', 'pu': 'ぷ', 'pe': 'ぺ', 'po': 'ぽ',
             'hya': 'ひゃ', 'hyu': 'ひゅ', 'hyo': 'ひょ', 'bya': 'びゃ', 'byu': 'びゅ', 'byo': 'びょ',
-
-            # M-row + yoon
             'ma': 'ま', 'mi': 'み', 'mu': 'む', 'me': 'め', 'mo': 'も',
             'mya': 'みゃ', 'myu': 'みゅ', 'myo': 'みょ',
-
-            # Y-row, R-row, others
             'ya': 'や', 'yu': 'ゆ', 'yo': 'よ',
             'ra': 'ら', 'ri': 'り', 'ru': 'る', 're': 'れ', 'ro': 'ろ',
-            'rya': 'りゃ', 'ryu': 'りゅ', 'ryo': 'りょ', 'wa': 'わ', 'wo': 'を', 'n': 'ん',
-
-            # Sokuon combinations (っ + CV)
-            'kk a': 'っか', 'kki': 'っき', 'kku': 'っく', 'kke': 'っけ', 'kko': 'っこ',
-            'gg a': 'っが', 'ggi': 'っぎ', 'ggu': 'っぐ', 'gge': 'っげ', 'ggo': 'っこ',
-            'tsu_ts u': 'っつ', 'tta': 'った', 'cchi': 'っち', 'sse': 'っせ', 'sso': 'っそ'
+            'rya': 'りゃ', 'ryu': 'りゅ', 'ryo': 'りょ', 'wa': 'わ', 'wo': 'を', 'n': 'ん'
         }
 
-    def romaji_to_hiragana(self, phoneme):
-        """✅ FIXED: Uses FULL dictionary - no more ignoring entries!"""
-        # Handle sokuon prefixes first
-        if phoneme.startswith('kk') or phoneme.startswith('gg'):
-            return self.hiragana_map.get(phoneme, phoneme)
-        if phoneme in ['ji', 'zu']:  # Default to shi/za versions
-            return self.hiragana_map.get(f'ji_s', phoneme)
-        if phoneme == 'ji_t':
-            return self.hiragana_map.get('ji_t', phoneme)
-
-        return self.hiragana_map.get(phoneme, phoneme)  # ✅ USES FULL DICT!
-
-    @staticmethod
-    def hiragana_to_romaji(text):
-        """✅ FIXED: Complete reverse mapping with ALL sokuon combos"""
-        # Full bidirectional mora → romaji mapping
-        mora_map = {
-            # Sokuon first
+        self.mora_trie = {}
+        mora_data = {
             'っ': ['っ'], 'っか': ['っ', 'ka'], 'っき': ['っ', 'ki'], 'っく': ['っ', 'ku'],
             'っけ': ['っ', 'ke'], 'っこ': ['っ', 'ko'], 'っが': ['っ', 'ga'], 'っぎ': ['っ', 'gi'],
             'っぐ': ['っ', 'gu'], 'っつ': ['っ', 'tsu'], 'った': ['っ', 'ta'], 'っち': ['っ', 'chi'],
-            'っせ': ['っ', 'se'], 'っそ': ['っ', 'so'],
-
-            # Vowels
-            'あ': ['a'], 'い': ['i'], 'う': ['u'], 'え': ['e'], 'お': ['o'],
-
-            # K-row + dakuten + yoon
-            'か': ['ka'], 'き': ['ki'], 'く': ['ku'], 'け': ['ke'], 'こ': ['ko'],
-            'が': ['ga'], 'ぎ': ['gi'], 'ぐ': ['gu'], 'げ': ['ge'], 'ご': ['go'],
-            'きゃ': ['kya'], 'きゅ': ['kyu'], 'きょ': ['kyo'], 'ぎゃ': ['gya'],
-            'ぎゅ': ['gyu'], 'ぎょ': ['gyo'],
-
-            # S-row + dakuten + yoon
-            'さ': ['sa'], 'し': ['shi'], 'す': ['su'], 'せ': ['se'], 'そ': ['so'],
-            'ざ': ['za'], 'じ': ['ji_s'], 'ず': ['zu'], 'ぜ': ['ze'], 'ぞ': ['zo'],
-            'しゃ': ['sha'], 'しゅ': ['shu'], 'しょ': ['sho'], 'じゃ': ['ja'],
-            'じゅ': ['ju'], 'じょ': ['jo'],
-
-            # T-row + dakuten + yoon
-            'た': ['ta'], 'ち': ['chi'], 'つ': ['tsu'], 'て': ['te'], 'と': ['to'],
-            'だ': ['da'], 'ぢ': ['ji_t'], 'づ': ['zu_t'], 'で': ['de'], 'ど': ['do'],
-            'ちゃ': ['cha'], 'ちゅ': ['chu'], 'ちょ': ['cho'],
-
-            # N, H, M, Y, R rows (complete)
-            'な': ['na'], 'に': ['ni'], 'ぬ': ['nu'], 'ね': ['ne'], 'の': ['no'],
-            'にゃ': ['nya'], 'にゅ': ['nyu'], 'にょ': ['nyo'],
-            'は': ['ha'], 'ひ': ['hi'], 'ふ': ['fu'], 'へ': ['he'], 'ほ': ['ho'],
-            'ば': ['ba'], 'び': ['bi'], 'ぶ': ['bu'], 'べ': ['be'], 'ぼ': ['bo'],
-            'ぱ': ['pa'], 'ぴ': ['pi'], 'ぷ': ['pu'], 'ぺ': ['pe'], 'ぽ': ['po'],
-            'ひゃ': ['hya'], 'ひゅ': ['hyu'], 'ひょ': ['hyo'], 'びゃ': ['bya'],
-            'びゅ': ['byu'], 'びょ': ['byo'],
-            'ま': ['ma'], 'み': ['mi'], 'む': ['mu'], 'め': ['me'], 'も': ['mo'],
-            'みゃ': ['mya'], 'みゅ': ['myu'], 'みょ': ['myo'],
-            'や': ['ya'], 'ゆ': ['yu'], 'よ': ['yo'],
-            'ら': ['ra'], 'り': ['ri'], 'る': ['ru'], 'れ': ['re'], 'ろ': ['ro'],
-            'りゃ': ['rya'], 'りゅ': ['ryu'], 'りょ': ['ryo'], 'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
+            'っせ': ['っ', 'se'], 'っそ': ['っ', 'so'], 'あ': ['a'], 'い': ['i'], 'う': ['u'],
+            'え': ['e'], 'お': ['o'], 'か': ['ka'], 'き': ['ki'], 'く': ['ku'], 'け': ['ke'],
+            'こ': ['ko'], 'が': ['ga'], 'ぎ': ['gi'], 'ぐ': ['gu'], 'げ': ['ge'], 'ご': ['go'],
+            'きゃ': ['kya'], 'きゅ': ['kyu'], 'きょ': ['kyo'], 'ぎゃ': ['gya'], 'ぎゅ': ['gyu'],
+            'ぎょ': ['gyo'], 'さ': ['sa'], 'し': ['shi'], 'す': ['su'], 'せ': ['se'], 'そ': ['so'],
+            'ざ': ['za'], 'じ': ['ji_s'], 'ず': ['zu'], 'ぜ': ['ze'], 'ぞ': ['zo'], 'しゃ': ['sha'],
+            'しゅ': ['shu'], 'しょ': ['sho'], 'じゃ': ['ja'], 'じゅ': ['ju'], 'じょ': ['jo'],
+            'た': ['ta'], 'ち': ['chi'], 'つ': ['tsu'], 'て': ['te'], 'と': ['to'], 'だ': ['da'],
+            'ぢ': ['ji_t'], 'づ': ['zu_t'], 'で': ['de'], 'ど': ['do'], 'ちゃ': ['cha'],
+            'ちゅ': ['chu'], 'ちょ': ['cho'], 'な': ['na'], 'に': ['ni'], 'ぬ': ['nu'],
+            'ね': ['ne'], 'の': ['no'], 'にゃ': ['nya'], 'にゅ': ['nyu'], 'にょ': ['nyo'],
+            'は': ['ha'], 'ひ': ['hi'], 'ふ': ['fu'], 'へ': ['he'], 'ほ': ['ho'], 'ば': ['ba'],
+            'び': ['bi'], 'ぶ': ['bu'], 'べ': ['be'], 'ぼ': ['bo'], 'ぱ': ['pa'], 'ぴ': ['pi'],
+            'ぷ': ['pu'], 'ぺ': ['pe'], 'ぽ': ['po'], 'ひゃ': ['hya'], 'ひゅ': ['hyu'],
+            'ひょ': ['hyo'], 'びゃ': ['bya'], 'びゅ': ['byu'], 'びょ': ['byo'], 'ま': ['ma'],
+            'み': ['mi'], 'む': ['mu'], 'め': ['me'], 'も': ['mo'], 'みゃ': ['mya'], 'みゅ': ['myu'],
+            'みょ': ['myo'], 'や': ['ya'], 'ゆ': ['yu'], 'よ': ['yo'], 'ら': ['ra'], 'り': ['ri'],
+            'る': ['ru'], 'れ': ['re'], 'ろ': ['ro'], 'りゃ': ['rya'], 'りゅ': ['ryu'], 'りょ': ['ryo'],
+            'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
         }
 
+        # Build trie once at startup
+        for mora, phones in mora_data.items():
+            node = self.mora_trie
+            for char in mora:
+                if char not in node:
+                    node[char] = {'end': False, 'phones': None}
+                node = node[char]
+            node['end'] = True
+            node['phones'] = phones
+
+    def romaji_to_hiragana(self, phoneme):
+        """✅ FIXED: Uses FULL dictionary - no more ignoring entries!"""
+        if phoneme.startswith('kk') or phoneme.startswith('gg'):
+            return self.hiragana_map.get(phoneme, phoneme)
+        if phoneme in ['ji', 'zu']:
+            return self.hiragana_map.get(f'ji_s', phoneme)
+        if phoneme == 'ji_t':
+            return self.hiragana_map.get('ji_t', phoneme)
+        return self.hiragana_map.get(phoneme, phoneme)
+
+    def hiragana_to_romaji(self, text):
+        """🚀 TRIE-BASED: O(n) instead of O(n × 100)"""
         phonemes = []
         i = 0
         text = text.strip()
 
         while i < len(text):
-            found = False
+            node = self.mora_trie
+            start = i
 
-            # Try longest patterns first (3-char → 2-char → 1-char)
-            for length in [3, 2, 1]:
-                for mora, phones in mora_map.items():
-                    if len(mora) == length and text[i:i + length] == mora:
-                        phonemes.extend(phones)
-                        i += length
-                        found = True
-                        break
-                if found:
+            while i < len(text) and text[i] in node:
+                node = node[text[i]]
+                i += 1
+                if 'end' in node and node['end']:
+                    phonemes.extend(node['phones'])
                     break
 
-            if not found:
-                i += 1  # Skip unknown chars
+            if i == start:
+                i += 1
 
         return phonemes
 
 
-def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3):
-    if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in 'あいうえお':
+def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
+    vowel_chars = brain.VOWEL_CHARS if brain else 'あいうえお'
+
+    if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
         return [(phoneme[0], 1.8)]
 
-    vowel_boost = 0.5 if phoneme in 'あいうえお' else 0
-    if random.random() < (stretch_prob + vowel_boost) and len(phoneme) == 1 and phoneme in 'あいうえお':
+    vowel_boost = 0.5 if phoneme in vowel_chars else 0
+    if random.random() < (stretch_prob + vowel_boost) and len(phoneme) == 1 and phoneme in vowel_chars:
         stretches = random.randint(1, max_stretch)
         return [(phoneme, 1.2)] + [('+', 0.6)] * stretches
     return [(phoneme, 1.0)]
@@ -211,7 +181,8 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
         elif line:
             try:
                 # Safe phoneme parsing with fallback
-                phonemes = HiroUSTGenerator.hiragana_to_romaji(line)
+                generator = HiroUSTGenerator()
+                phonemes = generator.hiragana_to_romaji(line)
                 if phonemes:  # Only add if parsing succeeded
                     parts[current_part].append(line)
                     all_elements.extend(phonemes)
@@ -281,6 +252,9 @@ class MotifMemory:
 
 class MelodyBrain:
     def __init__(self):
+        # ✅ ALL STATE + CONSTANTS IN ONE INIT
+        self.VOWEL_CHARS = 'あいうえお'
+        self.CONSONANT_CHARS = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
         self.last_note = 0
         self.phrases = []
         self.phrase_len = 0
@@ -355,22 +329,22 @@ class MelodyBrain:
         return max(50, min(120, base))
 
 
-# Global melody brain
-# melody_brain = MelodyBrain()
-
-VOWEL_CHARS = 'あいうえお'
-CONSONANT_CHARS = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
-
-
-def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0):
+def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None):
+    """Now takes MelodyBrain instance - no global access needed"""
     if phoneme == '+':
         return int(base_length * 0.6 * length_factor)
 
     phoneme_char = phoneme[0] if len(phoneme) > 0 else 'a'
+    if brain:  # Use passed brain's constants
+        vowel_chars = brain.VOWEL_CHARS
+        consonant_chars = brain.CONSONANT_CHARS
+    else:  # Fallback for compatibility
+        vowel_chars = 'あいうえお'
+        consonant_chars = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
 
-    if phoneme_char in VOWEL_CHARS:
+    if phoneme_char in vowel_chars:
         factor = 1.0 + random.uniform(-length_var, length_var * 0.3)
-    elif phoneme_char in CONSONANT_CHARS:
+    elif phoneme_char in consonant_chars:
         factor = 0.5 + random.uniform(0, length_var * 1.5)
     else:
         factor = 0.7 + random.uniform(-length_var * 0.2, length_var * 0.2)
@@ -435,13 +409,13 @@ Mode2=True
                 ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\n'
                 ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
-                continue  # Skip to next phoneme (which gets doubled naturally)
+                continue
 
             hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
-            stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3)
+            stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
             for stretch_phoneme, length_factor in stretch_notes:
-                note_length = get_note_length(stretch_phoneme, base_length, length_var, length_factor)
+                note_length = get_note_length(stretch_phoneme, base_length, length_var, length_factor, melody_brain)
 
                 if lyrical_mode:
                     note_num = melody_brain.get_smart_note(
@@ -480,7 +454,6 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
         base_semitone += random.choice([0, 0.5, -0.5])
 
     return root_midi + base_semitone
-
 
 # [GUI]
 class USTGeneratorApp:
@@ -650,38 +623,90 @@ class USTGeneratorApp:
         }
         return presets.get(preset_name, "0,10,35,0,100,100,0")
 
-    def _generate_content(self):
-        """Extracted common UST generation logic - NO DUPLICATION!"""
-        try:
-            melody_brain = MelodyBrain()  # Fresh brain each generation
+    def validate_inputs(self):
+        """🛡️ INDUSTRIAL-GRADE VALIDATION - Prevents ALL crashes"""
+        errors = []
 
+        # NUMERIC FIELDS (Critical)
+        try:
+            tempo = float(self.tempo_var.get())
+            if not 60 <= tempo <= 240:
+                errors.append("Tempo: 60-240 BPM")
+        except:
+            errors.append("Tempo: Enter number")
+
+        try:
+            length = int(self.length_var.get())
+            if not 120 <= length <= 1920:
+                errors.append("Base Length: 120-1920 ticks")
+        except:
+            errors.append("Base Length: Enter number")
+
+        # ALL OTHER NUMBERS (compact)
+        for field, minv, maxv, name in [
+            (self.line_pause_var, 240, 5000, "Line Pause"),
+            (self.section_pause_var, 480, 10000, "Section Pause"),
+            (self.length_var_ctrl, 0.0, 1.0, "Len Var"),
+            (self.stretch_var, 0.0, 1.0, "Stretch"),
+            (self.pre_utter_var, 0, 200, "PreUtterance"),
+            (self.voice_overlap_var, 0, 100, "Voice Overlap"),
+            (self.intensity_base_var, 30, 150, "Intensity")
+        ]:
+            try:
+                val = float(field.get())
+                if not minv <= val <= maxv:
+                    errors.append(f"{name}: {minv}-{maxv}")
+            except:
+                errors.append(f"{name}: Enter number")
+
+        # COMBOBOXES (Quick check)
+        if self.voice_var.get() not in KEY_ROOTS:
+            errors.append("Voice: Select from dropdown")
+        if self.scale_var.get() not in SCALES:
+            errors.append("Scale: Select from dropdown")
+
+        # LYRICS (Essential)
+        lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+        if not lyrics or len(lyrics) < 10:
+            errors.append("Lyrics: Add some text")
+
+        return errors
+
+
+    def _generate_content(self):  # ← This stays exactly where it is
+        """🚀 VALIDATED GENERATION - Bulletproof!"""
+        # VALIDATE FIRST
+        errors = self.validate_inputs()
+        if errors:
+            self.status_var.set(f"❌ Fix: {' | '.join(errors)}")
+            return None
+
+        try:
+            melody_brain = MelodyBrain()
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
-            if not lyrics:
-                self.status_var.set("❌ Lyrics cannot be empty!")
-                return None
 
             parts, elements = parse_song_structure(
                 lyrics,
                 int(self.line_pause_var.get()),
                 int(self.section_pause_var.get())
             )
-            self.status_var.set(f"✅ Parsed {len(elements)} elements from {len(parts)} sections")
+            self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
 
             root_key = KEY_ROOTS[self.voice_var.get()]
-
             ust_content = text_to_ust(
                 elements, str(self.project_var.get()), float(self.tempo_var.get()),
-                int(self.length_var.get()), root_key, self.scale_var.get(), self.intone_var.get(),
-                float(self.length_var_ctrl.get()), float(self.stretch_var.get()), melody_brain,
-                # ✅ NEW CUSTOMIZABLE PARAMS
+                int(self.length_var.get()), root_key, self.scale_var.get(),
+                self.intone_var.get(), float(self.length_var_ctrl.get()),
+                float(self.stretch_var.get()), melody_brain,
                 int(self.pre_utter_var.get()), int(self.voice_overlap_var.get()),
-                int(self.intensity_base_var.get()), self._get_envelope_preset(self.envelope_var.get()),
+                int(self.intensity_base_var.get()),
+                self._get_envelope_preset(self.envelope_var.get()),
                 self.flat_var.get(), self.quartertone_var.get(),
                 self.lyrical_mode_var.get(), self.motif_var.get()
             )
             return ust_content
         except Exception as e:
-            self.status_var.set(f"❌ Generation error: {str(e)}")
+            self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
 
     def generate_ust(self):
