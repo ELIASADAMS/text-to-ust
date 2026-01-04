@@ -1,6 +1,7 @@
+import os
 import random
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, filedialog
 
 SCALES = {
     # 12-note (Chromatic)
@@ -595,6 +596,7 @@ class USTGeneratorApp:
         btn_frame = ttk.Frame(output_panel)
         btn_frame.pack(fill="x")
         ttk.Button(btn_frame, text="🎵 Generate UST", command=self.generate_ust).pack(fill="x", pady=(0, 6))
+        ttk.Button(btn_frame, text="💾 Save UST", command=self.save_ust_only).pack(fill="x", pady=(0, 6))
         ttk.Button(btn_frame, text="📋 Preview Phonemes", command=self.preview_phonemes).pack(fill="x", pady=(0, 6))
         ttk.Button(btn_frame, text="🧹 Clear All", command=self.clear).pack(fill="x")
 
@@ -610,7 +612,6 @@ class USTGeneratorApp:
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
-    # ===== ALL ORIGINAL METHODS STAY EXACTLY THE SAME =====
     def preview_phonemes(self):
         lyrics = self.lyrics_text.get("1.0", tk.END).strip()
         parts, elements = parse_song_structure(lyrics)
@@ -629,24 +630,73 @@ class USTGeneratorApp:
             melody_brain = MelodyBrain()
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
             parts, elements = parse_song_structure(
-                lyrics, int(self.line_pause_var.get()), int(self.section_pause_var.get())
+                lyrics,
+                int(self.line_pause_var.get()),
+                int(self.section_pause_var.get())
             )
+
             root_key = KEY_ROOTS[self.voice_var.get()]
+
             ust_content = text_to_ust(
-                elements, str(self.project_var.get()), float(self.tempo_var.get()),
-                int(self.length_var.get()), root_key, self.scale_var.get(),
-                self.intone_var.get(), float(self.length_var_ctrl.get()),
-                float(self.stretch_var.get()), self.flat_var.get(),
-                self.quartertone_var.get(), self.lyrical_mode_var.get(), self.motif_var.get()
+                elements, str(self.project_var.get()),
+                float(self.tempo_var.get()), int(self.length_var.get()),
+                root_key, self.scale_var.get(), self.intone_var.get(),
+                float(self.length_var_ctrl.get()), float(self.stretch_var.get()),
+                self.flat_var.get(), self.quartertone_var.get(),
+                self.lyrical_mode_var.get(), self.motif_var.get()
             )
-            filename = f"{str(self.project_var.get()).replace(' ', '_')}.ust"
-            with open(filename, 'w', encoding='utf-8-sig') as f:
-                f.write(ust_content)
-            self.status_var.set(f"✅ Saved {filename} - {len(elements)} notes!")
+
+            # NEW: File save dialog
+            default_name = f"{self.project_var.get()}.ust"
+            current_dir = os.path.dirname(os.path.abspath(__file__))  # Script directory
+            suggested_path = os.path.join(current_dir, default_name)
+
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".ust",
+                filetypes=[("UST files", "*.ust"), ("All files", "*.*")],
+                initialfile=default_name,  # Just filename in titlebar
+                initialdir=current_dir,  # Opens in script's directory by default
+                title=f"Save UST - Default: {os.path.basename(suggested_path)}"
+            )
+
+            if filename:  # User didn't cancel
+                with open(filename, 'w', encoding='utf-8-sig') as f:
+                    f.write(ust_content)
+                self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
+            else:
+                self.status_var.set("❌ Save cancelled")
+
             self.preview_text.config(state="normal")
             self.preview_text.delete("1.0", tk.END)
-            self.preview_text.insert("1.0", f"✅ GENERATED: {filename}\n\n{ust_content[:800]}...")
+            self.preview_text.insert("1.0", f"✅ UST Ready:\n\n{ust_content[:600]}...")
             self.preview_text.config(state="disabled")
+        except Exception as e:
+            self.status_var.set(f"❌ Error: {str(e)}")
+
+    def save_ust_only(self):
+        try:
+            # Generate content without saving
+            global melody_brain
+            melody_brain = MelodyBrain()
+            lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+            parts, elements = parse_song_structure(lyrics, int(self.line_pause_var.get()),
+                                                   int(self.section_pause_var.get()))
+            root_key = KEY_ROOTS[self.voice_var.get()]
+            ust_content = text_to_ust(elements, str(self.project_var.get()), float(self.tempo_var.get()),
+                                      int(self.length_var.get()), root_key, self.scale_var.get(),
+                                      self.intone_var.get(), float(self.length_var_ctrl.get()),
+                                      float(self.stretch_var.get()), self.flat_var.get(),
+                                      self.quartertone_var.get(), self.lyrical_mode_var.get(), self.motif_var.get())
+
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".ust", filetypes=[("UST files", "*.ust")],
+                initialfile=f"{self.project_var.get()}.ust",
+                initialdir=os.path.dirname(os.path.abspath(__file__))
+            )
+            if filename:
+                with open(filename, 'w', encoding='utf-8-sig') as f:
+                    f.write(ust_content)
+                self.status_var.set(f"✅ Saved {os.path.basename(filename)}")
         except Exception as e:
             self.status_var.set(f"❌ Error: {str(e)}")
 
