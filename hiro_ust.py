@@ -455,6 +455,7 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 
     return root_midi + base_semitone
 
+
 # [GUI]
 class USTGeneratorApp:
     def __init__(self, root):
@@ -671,7 +672,6 @@ class USTGeneratorApp:
             errors.append("Lyrics: Add some text")
 
         return errors
-
 
     def _generate_content(self):  # ← This stays exactly where it is
         """🚀 VALIDATED GENERATION - Bulletproof!"""
