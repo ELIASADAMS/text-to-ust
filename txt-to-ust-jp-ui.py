@@ -405,7 +405,7 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Kana → UST Pro v3.1")
+        self.root.title("Hiro v3.2")
         self.root.geometry("750x700")
 
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics", padding=10)
