@@ -12,7 +12,7 @@ SCALES = {
     # 8-note (Octatonic)
     'Octatonic': [0, 1, 3, 4, 6, 7, 9, 10],
 
-    # 7-note (Diatonic - your originals)
+    # 7-note (Diatonic)
     'C Major': [0, 2, 4, 5, 7, 9, 11], 'C Minor': [0, 2, 3, 5, 7, 8, 10],
     'D Major': [2, 4, 6, 7, 9, 11, 1], 'D Minor': [2, 4, 5, 7, 9, 10, 0],
     'E Major': [4, 6, 8, 9, 11, 1, 3], 'E Minor': [4, 6, 7, 9, 11, 0, 2],
@@ -20,7 +20,7 @@ SCALES = {
     'G Major': [7, 9, 11, 0, 2, 4, 6], 'G Minor': [7, 9, 10, 0, 2, 3, 5],
     'A Major': [9, 11, 1, 2, 4, 6, 8], 'A Minor': [9, 11, 0, 2, 4, 5, 7],
 
-    # 6-note (Hexatonic/Whole Tone)
+    # 6-note (Hexatonic)
     'Whole Tone': [0, 2, 4, 6, 8, 10],
     'Hexatonic Blues': [0, 3, 5, 6, 9, 10],
 
@@ -99,7 +99,7 @@ class HiroUSTGenerator:
     def romaji_to_hiragana(self, phoneme):
         vowel_map = {'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お'}
         if phoneme in vowel_map:
-            return vowel_map[phoneme]  # 'u' → 'う' ✓
+            return vowel_map[phoneme]
 
         sokuon_combos = {
             'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく',
@@ -107,11 +107,11 @@ class HiroUSTGenerator:
         }
         if phoneme in sokuon_combos:
             return sokuon_combos[phoneme]
-        return phoneme  # Keep kya→きゃ, shi→し
+        return phoneme
 
 
 def hiragana_to_romaji(text):
-    # COMPLETE Japanese mora → phoneme mapping
+    # Japanese mora → phoneme mapping
     mora_map = {
         # Sokuon (small tsu)
         'っ': ['っ'],
@@ -171,7 +171,7 @@ def hiragana_to_romaji(text):
     text = text.strip()
 
     while i < len(text):
-        # Try 3-char patterns first (っか, っきゃ etc.)
+        # 3-char patterns (っか, っきゃ etc.)
         found = False
         for mora, phones in mora_map.items():
             if len(mora) == 3 and text[i:i + 3] == mora:
@@ -182,7 +182,7 @@ def hiragana_to_romaji(text):
 
         if found: continue
 
-        # Try 2-char patterns (きゃ, しゃ etc.)
+        # 2-char patterns (きゃ, しゃ etc.)
         for mora, phones in mora_map.items():
             if len(mora) == 2 and text[i:i + 2] == mora:
                 phonemes.extend(phones)
@@ -192,7 +192,7 @@ def hiragana_to_romaji(text):
 
         if found: continue
 
-        # Try 1-char patterns (か, あ etc.)
+        # 1-char patterns (か, あ etc.)
         for mora, phones in mora_map.items():
             if len(mora) == 1 and text[i:i + 1] == mora:
                 phonemes.extend(phones)
@@ -243,32 +243,29 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
 class MotifMemory:
     def __init__(self, motif_length=4):
-        self.motif_length = motif_length  # 3-5 notes
-        self.stored_motifs = []  # List of [note1, note2, note3, note4]
+        self.motif_length = motif_length
+        self.stored_motifs = []
         self.max_motifs = 5
 
     def add_motif(self, notes):
-        """Store recent notes as motif"""
         if len(notes) >= self.motif_length:
-            motif = notes[-self.motif_length:]  # Last N notes
-            # Avoid duplicate motifs
+            motif = notes[-self.motif_length:]
+            # Avoid duplicate
             if motif not in self.stored_motifs:
                 self.stored_motifs.append(motif)
-                # Keep only top 5 motifs
+                # Keep only top 5
                 if len(self.stored_motifs) > self.max_motifs:
                     self.stored_motifs.pop(0)
 
     def get_motif_note(self, current_note, scale, use_motif_prob=0.4):
-        """Get note from motif memory OR new note"""
         if (self.stored_motifs and
                 random.random() < use_motif_prob and
                 len(self.stored_motifs[-1]) > 1):
 
-            # 🎵 REUSE MOTIF WITH VARIATION
+            # REUSE MOTIF WITH VARIATION
             motif = self.stored_motifs[-1]
             next_in_motif = motif[1:]  # Shift motif forward
 
-            # Variation: ±1 semitone with 50% chance
             if random.random() < 0.5:
                 varied_note = next_in_motif[0] + random.choice([-1, 0, 1])
                 target_note = min(max(0, varied_note), 11)
@@ -280,7 +277,7 @@ class MotifMemory:
             return closest_scale
 
         # No motif: regular melodic note
-        melodic_notes = [0, 2, 4, 5, 7, 9]  # Scale degrees
+        melodic_notes = [0, 2, 4, 5, 7, 9]
         return random.choice(melodic_notes)
 
     def debug_motifs(self):
@@ -314,19 +311,19 @@ class MelodyBrain:
             self.recent_notes.pop(0)
             self.motif_memory.add_motif(self.recent_notes)  # Learn motif
 
-        # PHRASE ENDINGS first
+        # PHRASE ENDINGS
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
             self.last_note = random.choice([0, 7])  # Tonic or dominant
             self.phrase_len = 1
             target_note = self.last_note
         else:
-            # MOTIF MEMORY (toggleable!)
+            # MOTIF MEMORY
             if use_motifs:
                 target_note = self.motif_memory.get_motif_note(
                     self.last_note, scale, use_motif_prob=0.4)
             else:
-                # Original logic
+                # Revert to Original logic
                 if is_vowel:
                     high_notes = scale[-3:]
                     target_note = random.choice([4, 7] + high_notes)
@@ -490,18 +487,20 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
     return root_midi + base_semitone
 
 
-# [GUI stays exactly the same as previous version]
+# [GUI]
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hiro v3.2")
-        self.root.geometry("750x700")
+        self.root.title("🤖 Hiro UST Generator v4.0")
+        self.root.geometry("900x800")
+        self.root.minsize(850, 750)
 
-        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics", padding=10)
-        input_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        # =============== MAIN LYRICS (Top 40%) ===============
+        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
+        input_frame.pack(fill="both", expand=True, padx=15, pady=(15, 10))
 
-        self.lyrics_text = scrolledtext.ScrolledText(input_frame, height=8)
-        self.lyrics_text.pack(fill="both", expand=True, pady=(0, 10))
+        self.lyrics_text = scrolledtext.ScrolledText(input_frame, height=10, font=("Consolas", 10))
+        self.lyrics_text.pack(fill="both", expand=True, pady=(0, 12))
         self.lyrics_text.insert("1.0", """[Verse 1]
 きゃっきゃ うれし いたい さぶり
 ゆびさき きりさけ あかい つゆ
@@ -509,83 +508,156 @@ class USTGeneratorApp:
 [Chorus]
 いたみ いたみ きもちいい""")
 
-        controls_frame = ttk.LabelFrame(root, text="⚙️ Generation Settings", padding=10)
-        controls_frame.pack(fill="x", padx=10, pady=5)
+        # =============== CONTROLS GRID (4 Perfect Panels) ===============
+        controls_main = ttk.Frame(root)
+        controls_main.pack(fill="x", padx=15, pady=(0, 10))
 
-        row1 = ttk.Frame(controls_frame)
-        row1.pack(fill="x", pady=(0, 5))
-        ttk.Label(row1, text="Tempo:").pack(side="left")
+        # Panel 1: Timing (Left)
+        timing_panel = ttk.LabelFrame(controls_main, text="⏱️ Timing", padding=10)
+        timing_panel.pack(side="left", fill="both", expand=True, padx=(0, 8))
+
+        ttk.Label(timing_panel, text="Tempo (BPM):").pack(anchor="w")
+        tempo_frame = ttk.Frame(timing_panel)
+        tempo_frame.pack(fill="x", pady=(0, 8))
         self.tempo_var = tk.StringVar(value="120.00")
-        ttk.Entry(row1, textvariable=self.tempo_var, width=8).pack(side="left", padx=(5, 20))
-        ttk.Label(row1, text="Base Length:").pack(side="left")
+        ttk.Entry(tempo_frame, textvariable=self.tempo_var, width=12).pack(side="left")
+        ttk.Label(tempo_frame, text="ticks/note", font=("TkDefaultFont", 8)).pack(side="right")
+
+        ttk.Label(timing_panel, text="Base Length:").pack(anchor="w")
+        base_frame = ttk.Frame(timing_panel)
+        base_frame.pack(fill="x", pady=(0, 8))
         self.length_var = tk.StringVar(value="240")
-        ttk.Entry(row1, textvariable=self.length_var, width=8).pack(side="left", padx=5)
+        ttk.Entry(base_frame, textvariable=self.length_var, width=12).pack(side="left")
+        ttk.Label(base_frame, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
-        row2 = ttk.Frame(controls_frame)
-        row2.pack(fill="x", pady=(0, 5))
-        ttk.Label(row2, text="Line Pause:").pack(side="left")
+        pause_frame = ttk.Frame(timing_panel)
+        pause_frame.pack(fill="x")
+        ttk.Label(pause_frame, text="Line:").pack(side="left")
         self.line_pause_var = tk.StringVar(value="960")
-        ttk.Entry(row2, textvariable=self.line_pause_var, width=8).pack(side="left", padx=(5, 5))
-        ttk.Label(row2, text="Section Pause:").pack(side="left", padx=(20, 0))
+        ttk.Entry(pause_frame, textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Label(pause_frame, text="Sect:").pack(side="left")
         self.section_pause_var = tk.StringVar(value="1920")
-        ttk.Entry(row2, textvariable=self.section_pause_var, width=8).pack(side="left", padx=5)
+        ttk.Entry(pause_frame, textvariable=self.section_pause_var, width=10).pack(side="left", padx=5)
 
-        row3 = ttk.Frame(controls_frame)
-        row3.pack(fill="x", pady=(0, 5))
-        ttk.Label(row3, text="Length Var:").pack(side="left")
-        self.length_var_ctrl = tk.StringVar(value="0.3")
-        ttk.Entry(row3, textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=5)
-        ttk.Label(row3, text="Stretch Prob:").pack(side="left", padx=(20, 0))
-        self.stretch_var = tk.StringVar(value="0.25")
-        ttk.Entry(row3, textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
+        # Panel 2: Voice & Length (Left-Center)
+        voice_panel = ttk.LabelFrame(controls_main, text="🎤 Voice & Length", padding=10)
+        voice_panel.pack(side="left", fill="both", expand=True, padx=(0, 8))
 
-        row4 = ttk.Frame(controls_frame)
-        row4.pack(fill="x", pady=(0, 10))
-        ttk.Label(row4, text="Voice:").pack(side="left")
-        self.voice_var = ttk.Combobox(row4, values=list(KEY_ROOTS.keys()), state="readonly", width=10)
-        self.voice_var.set("Alto")  # Default
-        self.voice_var.pack(side="left", padx=(5, 10))
+        ttk.Label(voice_panel, text="Voice:").pack(anchor="w")
+        self.voice_var = ttk.Combobox(voice_panel, values=list(KEY_ROOTS.keys()), state="readonly", width=15)
+        self.voice_var.set("Alto")
+        self.voice_var.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(row4, text="Scale:").pack(side="left")
-        self.scale_var = ttk.Combobox(row4, values=list(SCALES.keys()), state="readonly", width=12)
+        ttk.Label(voice_panel, text="Scale:").pack(anchor="w")
+        self.scale_var = ttk.Combobox(voice_panel, values=list(SCALES.keys()), state="readonly", width=15)
         self.scale_var.set("Major Pentatonic")
-        self.scale_var.pack(side="left", padx=(5, 10))
+        self.scale_var.pack(fill="x", pady=(0, 8))
+
+        length_frame = ttk.Frame(voice_panel)
+        length_frame.pack(fill="x")
+        ttk.Label(length_frame, text="Len Var:").pack(side="left")
+        self.length_var_ctrl = tk.StringVar(value="0.3")
+        ttk.Entry(length_frame, textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=(5, 15))
+        ttk.Label(length_frame, text="Stretch:").pack(side="left")
+        self.stretch_var = tk.StringVar(value="0.25")
+        ttk.Entry(length_frame, textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
+
+        # Panel 3: Melody Modes (Center)
+        melody_panel = ttk.LabelFrame(controls_main, text="🎵 Melody Modes", padding=10)
+        melody_panel.pack(side="left", fill="y", padx=(0, 8))
 
         self.motif_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(row4, text="🎼 Motif Memory", variable=self.motif_var).pack(side="left", padx=5)
-
-        # Intonation slider + dropdown
-        ttk.Label(row4, text="Intone:").pack(side="left")
-        self.intone_var = ttk.Combobox(row4, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
-                                       state="readonly", width=10)
-        self.intone_var.set("Tight (1)")
-        self.intone_var.pack(side="left", padx=5)
-
-        self.flat_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row4, text="🎹 Flat", variable=self.flat_var).pack(side="left", padx=5)
-
-        self.quartertone_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row4, text="🎼 Quarter-Tone", variable=self.quartertone_var).pack(side="left", padx=5)
+        ttk.Checkbutton(melody_panel, text="🎼 Motif Memory", variable=self.motif_var).pack(anchor="w", pady=2)
 
         self.lyrical_mode_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(row4, text="🎭 Lyrical Mode", variable=self.lyrical_mode_var).pack(side="left", padx=5)
+        ttk.Checkbutton(melody_panel, text="🎭 Lyrical Mode", variable=self.lyrical_mode_var).pack(anchor="w", pady=2)
 
-        ttk.Label(controls_frame, text="Project:").pack(anchor="w")
-        self.project_var = tk.StringVar(value="Main")
-        ttk.Entry(controls_frame, textvariable=self.project_var).pack(fill="x", pady=(0, 10))
+        self.flat_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(melody_panel, text="🎹 Monotone (Flat)", variable=self.flat_var).pack(anchor="w", pady=2)
 
-        btn_frame = ttk.Frame(root)
-        btn_frame.pack(fill="x", padx=10, pady=5)
-        ttk.Button(btn_frame, text="🎵 Generate UST", command=self.generate_ust).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="📋 Preview", command=self.preview_phonemes).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(side="right")
+        self.quartertone_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)", variable=self.quartertone_var).pack(anchor="w", pady=2)
 
-        self.status_var = tk.StringVar(value="Ready!")
-        ttk.Label(root, textvariable=self.status_var, relief="sunken", anchor="w").pack(fill="x", padx=10,
-                                                                                        pady=(0, 5))
+        ttk.Label(melody_panel, text="Intone:").pack(anchor="w", pady=(8, 0))
+        self.intone_var = ttk.Combobox(melody_panel, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
+                                       state="readonly", width=15)
+        self.intone_var.set("Tight (1)")
+        self.intone_var.pack(fill="x")
 
-        self.preview_text = scrolledtext.ScrolledText(root, height=6, state="disabled")
-        self.preview_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        # Panel 4: Output (Right)
+        output_panel = ttk.LabelFrame(controls_main, text="💾 Output", padding=10)
+        output_panel.pack(side="right", fill="y")
+
+        ttk.Label(output_panel, text="Project:").pack(anchor="w")
+        self.project_var = tk.StringVar(value="Hiro_Main")
+        ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 12))
+
+        btn_frame = ttk.Frame(output_panel)
+        btn_frame.pack(fill="x")
+        ttk.Button(btn_frame, text="🎵 Generate UST", command=self.generate_ust).pack(fill="x", pady=(0, 6))
+        ttk.Button(btn_frame, text="📋 Preview Phonemes", command=self.preview_phonemes).pack(fill="x", pady=(0, 6))
+        ttk.Button(btn_frame, text="🧹 Clear All", command=self.clear).pack(fill="x")
+
+        # =============== STATUS + PREVIEW (Bottom 25%) ===============
+        status_frame = ttk.Frame(root)
+        status_frame.pack(fill="x", padx=15, pady=(0, 10))
+
+        self.status_var = tk.StringVar(value="✅ Ready - All controls visible!")
+        ttk.Label(status_frame, textvariable=self.status_var, relief="sunken", anchor="w").pack(fill="x")
+
+        preview_frame = ttk.LabelFrame(root, text="👀 Preview", padding=8)
+        preview_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
+        self.preview_text.pack(fill="both", expand=True)
+
+    # ===== ALL ORIGINAL METHODS STAY EXACTLY THE SAME =====
+    def preview_phonemes(self):
+        lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+        parts, elements = parse_song_structure(lyrics)
+        preview = "Phoneme Preview (first 20):\n\n"
+        for i, elem in enumerate(elements[:20]):
+            if not elem.startswith('PAUSE'):
+                preview += f"{i:2d}: {elem} → {HiroUSTGenerator().romaji_to_hiragana(elem)}\n"
+        self.preview_text.config(state="normal")
+        self.preview_text.delete("1.0", tk.END)
+        self.preview_text.insert("1.0", preview)
+        self.preview_text.config(state="disabled")
+
+    def generate_ust(self):
+        try:
+            global melody_brain
+            melody_brain = MelodyBrain()
+            lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+            parts, elements = parse_song_structure(
+                lyrics, int(self.line_pause_var.get()), int(self.section_pause_var.get())
+            )
+            root_key = KEY_ROOTS[self.voice_var.get()]
+            ust_content = text_to_ust(
+                elements, str(self.project_var.get()), float(self.tempo_var.get()),
+                int(self.length_var.get()), root_key, self.scale_var.get(),
+                self.intone_var.get(), float(self.length_var_ctrl.get()),
+                float(self.stretch_var.get()), self.flat_var.get(),
+                self.quartertone_var.get(), self.lyrical_mode_var.get(), self.motif_var.get()
+            )
+            filename = f"{str(self.project_var.get()).replace(' ', '_')}.ust"
+            with open(filename, 'w', encoding='utf-8-sig') as f:
+                f.write(ust_content)
+            self.status_var.set(f"✅ Saved {filename} - {len(elements)} notes!")
+            self.preview_text.config(state="normal")
+            self.preview_text.delete("1.0", tk.END)
+            self.preview_text.insert("1.0", f"✅ GENERATED: {filename}\n\n{ust_content[:800]}...")
+            self.preview_text.config(state="disabled")
+        except Exception as e:
+            self.status_var.set(f"❌ Error: {str(e)}")
+
+    def clear(self):
+        self.lyrics_text.delete("1.0", tk.END)
+        self.lyrics_text.insert("1.0", """[Verse 1]
+きゃっきゃ うれし いたい さぶり""")
+        self.preview_text.config(state="normal")
+        self.preview_text.delete("1.0", tk.END)
+        self.preview_text.config(state="disabled")
+        self.status_var.set("✅ Ready!")
 
     def preview_phonemes(self):
         lyrics = self.lyrics_text.get("1.0", tk.END).strip()
