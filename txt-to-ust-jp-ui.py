@@ -32,6 +32,15 @@ SCALES = {
     'Tetratonic': [0, 4, 7, 11]
 }
 
+KEY_ROOTS = {
+    "Soprano": 67,  # G4
+    "Alto": 60,  # C4
+    "Tenor": 55,  # G3
+    "Baritone": 52,  # E3
+    "Bass": 48,  # C3
+    "C4 Default": 60
+}
+
 
 class HiroUSTGenerator:
     def __init__(self):
@@ -88,16 +97,17 @@ class HiroUSTGenerator:
         }
 
     def romaji_to_hiragana(self, phoneme):
-        # SPECIAL SOKUON COMBOS ONLY - otherwise RETURN ROMAJI
-        sokuon_combos = {
-            'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく', 'ketsu': 'っけ', 'kotsu': 'っこ',
-            'tatsu': 'った', 'chitsu': 'っち', 'setsu': 'っせ', 'sotsu': 'っそ', 'tsutsu': 'っつ',
-            'tta': 'った', 'ppa': 'っぱ', 'mma': 'っま', 'nna': 'んな', 'ssa': 'っさ'
-        }
+        vowel_map = {'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お'}
+        if phoneme in vowel_map:
+            return vowel_map[phoneme]  # 'u' → 'う' ✓
 
+        sokuon_combos = {
+            'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく',
+            'ketsu': 'っけ', 'kotsu': 'っこ', 'tatsu': 'った'
+        }
         if phoneme in sokuon_combos:
             return sokuon_combos[phoneme]
-        return phoneme  # Returns 'な'→'な', 'tsu'→'tsu'
+        return phoneme  # Keep kya→きゃ, shi→し
 
 
 def hiragana_to_romaji(text):
@@ -198,10 +208,12 @@ def hiragana_to_romaji(text):
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3):
     if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in 'あいうえお':
-        return [(phoneme[0], 1.8)]  # Single long note
-    if random.random() < stretch_prob and len(phoneme) == 1 and phoneme in 'あいうえお':
+        return [(phoneme[0], 1.8)]
+
+    vowel_boost = 0.5 if phoneme in 'あいうえお' else 0
+    if random.random() < (stretch_prob + vowel_boost) and len(phoneme) == 1 and phoneme in 'あいうえお':
         stretches = random.randint(1, max_stretch)
-        return [(phoneme, 1.2)] + [('+', 0.8)] * stretches
+        return [(phoneme, 1.2)] + [('+', 0.6)] * stretches
     return [(phoneme, 1.0)]
 
 
@@ -452,7 +464,6 @@ Mode2=True
                 ust += f'Lyric={stretch_phoneme}\n'
                 ust += f'NoteNum={int(note_num)}\n'
                 ust += f'PreUtterance=25\nVoiceOverlap=10\n'
-                # Fixed dynamic intensity
                 phrase_progress = melody_brain.phrase_len / 12.0
                 intensity = 80 + int(abs(melody_brain.last_note - 5) * 8)
                 if phrase_progress > 0.8:
@@ -530,9 +541,11 @@ class USTGeneratorApp:
 
         row4 = ttk.Frame(controls_frame)
         row4.pack(fill="x", pady=(0, 10))
-        ttk.Label(row4, text="Root:").pack(side="left")
-        self.root_var = tk.StringVar(value="60")
-        ttk.Entry(row4, textvariable=self.root_var, width=8).pack(side="left", padx=(5, 10))
+        ttk.Label(row4, text="Voice:").pack(side="left")
+        self.voice_var = ttk.Combobox(row4, values=list(KEY_ROOTS.keys()), state="readonly", width=10)
+        self.voice_var.set("Alto")  # Default
+        self.voice_var.pack(side="left", padx=(5, 10))
+
         ttk.Label(row4, text="Scale:").pack(side="left")
         self.scale_var = ttk.Combobox(row4, values=list(SCALES.keys()), state="readonly", width=12)
         self.scale_var.set("Major Pentatonic")
@@ -597,12 +610,14 @@ class USTGeneratorApp:
                 int(self.section_pause_var.get())
             )
 
+            root_key = KEY_ROOTS[self.voice_var.get()]
+
             ust_content = text_to_ust(
                 elements,  # 1
                 str(self.project_var.get()),  # 2
                 float(self.tempo_var.get()),  # 3
                 int(self.length_var.get()),  # 4
-                int(self.root_var.get()),  # 5
+                root_key,  # 5
                 self.scale_var.get(),  # 6
                 self.intone_var.get(),  # 7
                 float(self.length_var_ctrl.get()),  # 8
@@ -610,7 +625,7 @@ class USTGeneratorApp:
                 self.flat_var.get(),  # 10
                 self.quartertone_var.get(),  # 11
                 self.lyrical_mode_var.get(),  # 12
-                self.motif_var.get()
+                self.motif_var.get()  # 13
             )
 
             filename = f"{str(self.project_var.get()).replace(' ', '_')}.ust"
