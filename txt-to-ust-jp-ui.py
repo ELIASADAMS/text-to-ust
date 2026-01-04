@@ -507,6 +507,8 @@ class USTGeneratorApp:
 
     def generate_ust(self):
         try:
+            global melody_brain
+            melody_brain = MelodyBrain()
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
             parts, elements = parse_song_structure(
                 lyrics,
