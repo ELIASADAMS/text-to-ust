@@ -1,6 +1,6 @@
-import sys
 import os
 import random
+import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
@@ -53,18 +53,16 @@ class HiroUSTGenerator:
             # K-row + dakuten + yoon + sokuon
             'ka': 'か', 'ki': 'き', 'ku': 'く', 'ke': 'け', 'ko': 'こ',
             'ga': 'が', 'gi': 'ぎ', 'gu': 'ぐ', 'ge': 'げ', 'go': 'ご',
-            'kya': 'きゃ', 'kyu': 'きゅ', 'kyo': 'きょ',
-            'gya': 'ぎゃ', 'gyu': 'ぎゅ', 'gyo': 'ぎょ',
+            'kya': 'きゃ', 'kyu': 'きゅ', 'kyo': 'きょ', 'gya': 'ぎゃ', 'gyu': 'ぎゅ', 'gyo': 'ぎょ',
 
             # S-row + dakuten + yoon
             'sa': 'さ', 'shi': 'し', 'su': 'す', 'se': 'せ', 'so': 'そ',
-            'za': 'ざ', 'ji': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',
-            'sha': 'しゃ', 'shu': 'しゅ', 'sho': 'しょ',
-            'ja': 'じゃ', 'ju': 'じゅ', 'jo': 'じょ',
+            'za': 'ざ', 'ji_s': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',  # ji_s = じ (from shi+dakuten)
+            'sha': 'しゃ', 'shu': 'しゅ', 'sho': 'しょ', 'ja': 'じゃ', 'ju': 'じゅ', 'jo': 'じょ',
 
             # T-row + dakuten + yoon + sokuon
             'ta': 'た', 'chi': 'ち', 'tsu': 'つ', 'te': 'て', 'to': 'と',
-            'da': 'だ', 'ji': 'ぢ', 'zu': 'づ', 'de': 'で', 'do': 'ど',
+            'da': 'だ', 'ji_t': 'ぢ', 'zu_t': 'づ', 'de': 'で', 'do': 'ど',  # ji_t = ぢ (from chi+dakuten)
             'cha': 'ちゃ', 'chu': 'ちゅ', 'cho': 'ちょ',
 
             # N-row + yoon
@@ -75,137 +73,103 @@ class HiroUSTGenerator:
             'ha': 'は', 'hi': 'ひ', 'fu': 'ふ', 'he': 'へ', 'ho': 'ほ',
             'ba': 'ば', 'bi': 'び', 'bu': 'ぶ', 'be': 'べ', 'bo': 'ぼ',
             'pa': 'ぱ', 'pi': 'ぴ', 'pu': 'ぷ', 'pe': 'ぺ', 'po': 'ぽ',
-            'hya': 'ひゃ', 'hyu': 'ひゅ', 'hyo': 'ひょ',
-            'bya': 'びゃ', 'byu': 'びゅ', 'byo': 'びょ',
+            'hya': 'ひゃ', 'hyu': 'ひゅ', 'hyo': 'ひょ', 'bya': 'びゃ', 'byu': 'びゅ', 'byo': 'びょ',
 
             # M-row + yoon
             'ma': 'ま', 'mi': 'み', 'mu': 'む', 'me': 'め', 'mo': 'も',
             'mya': 'みゃ', 'myu': 'みゅ', 'myo': 'みょ',
 
-            # Y-row
+            # Y-row, R-row, others
             'ya': 'や', 'yu': 'ゆ', 'yo': 'よ',
-
-            # R-row + yoon
             'ra': 'ら', 'ri': 'り', 'ru': 'る', 're': 'れ', 'ro': 'ろ',
-            'rya': 'りゃ', 'ryu': 'りゅ', 'ryo': 'りょ',
-
-            # Others
-            'wa': 'わ', 'wo': 'を', 'n': 'ん',
+            'rya': 'りゃ', 'ryu': 'りゅ', 'ryo': 'りょ', 'wa': 'わ', 'wo': 'を', 'n': 'ん',
 
             # Sokuon combinations (っ + CV)
-            'tsutsu': 'っつ', 'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく',
-            'ketsu': 'っけ', 'kotsu': 'っこ', 'tatsu': 'った', 'chitsu': 'っち',
-            'setsu': 'っせ', 'sotsu': 'っそ'
+            'kk a': 'っか', 'kki': 'っき', 'kku': 'っく', 'kke': 'っけ', 'kko': 'っこ',
+            'gg a': 'っが', 'ggi': 'っぎ', 'ggu': 'っぐ', 'gge': 'っげ', 'ggo': 'っこ',
+            'tsu_ts u': 'っつ', 'tta': 'った', 'cchi': 'っち', 'sse': 'っせ', 'sso': 'っそ'
         }
 
     def romaji_to_hiragana(self, phoneme):
-        vowel_map = {'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お'}
-        if phoneme in vowel_map:
-            return vowel_map[phoneme]
+        """✅ FIXED: Uses FULL dictionary - no more ignoring entries!"""
+        # Handle sokuon prefixes first
+        if phoneme.startswith('kk') or phoneme.startswith('gg'):
+            return self.hiragana_map.get(phoneme, phoneme)
+        if phoneme in ['ji', 'zu']:  # Default to shi/za versions
+            return self.hiragana_map.get(f'ji_s', phoneme)
+        if phoneme == 'ji_t':
+            return self.hiragana_map.get('ji_t', phoneme)
 
-        sokuon_combos = {
-            'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく',
-            'ketsu': 'っけ', 'kotsu': 'っこ', 'tatsu': 'った'
+        return self.hiragana_map.get(phoneme, phoneme)  # ✅ USES FULL DICT!
+
+    @staticmethod
+    def hiragana_to_romaji(text):
+        """✅ FIXED: Complete reverse mapping with ALL sokuon combos"""
+        # Full bidirectional mora → romaji mapping
+        mora_map = {
+            # Sokuon first
+            'っ': ['っ'], 'っか': ['っ', 'ka'], 'っき': ['っ', 'ki'], 'っく': ['っ', 'ku'],
+            'っけ': ['っ', 'ke'], 'っこ': ['っ', 'ko'], 'っが': ['っ', 'ga'], 'っぎ': ['っ', 'gi'],
+            'っぐ': ['っ', 'gu'], 'っつ': ['っ', 'tsu'], 'った': ['っ', 'ta'], 'っち': ['っ', 'chi'],
+            'っせ': ['っ', 'se'], 'っそ': ['っ', 'so'],
+
+            # Vowels
+            'あ': ['a'], 'い': ['i'], 'う': ['u'], 'え': ['e'], 'お': ['o'],
+
+            # K-row + dakuten + yoon
+            'か': ['ka'], 'き': ['ki'], 'く': ['ku'], 'け': ['ke'], 'こ': ['ko'],
+            'が': ['ga'], 'ぎ': ['gi'], 'ぐ': ['gu'], 'げ': ['ge'], 'ご': ['go'],
+            'きゃ': ['kya'], 'きゅ': ['kyu'], 'きょ': ['kyo'], 'ぎゃ': ['gya'],
+            'ぎゅ': ['gyu'], 'ぎょ': ['gyo'],
+
+            # S-row + dakuten + yoon
+            'さ': ['sa'], 'し': ['shi'], 'す': ['su'], 'せ': ['se'], 'そ': ['so'],
+            'ざ': ['za'], 'じ': ['ji_s'], 'ず': ['zu'], 'ぜ': ['ze'], 'ぞ': ['zo'],
+            'しゃ': ['sha'], 'しゅ': ['shu'], 'しょ': ['sho'], 'じゃ': ['ja'],
+            'じゅ': ['ju'], 'じょ': ['jo'],
+
+            # T-row + dakuten + yoon
+            'た': ['ta'], 'ち': ['chi'], 'つ': ['tsu'], 'て': ['te'], 'と': ['to'],
+            'だ': ['da'], 'ぢ': ['ji_t'], 'づ': ['zu_t'], 'で': ['de'], 'ど': ['do'],
+            'ちゃ': ['cha'], 'ちゅ': ['chu'], 'ちょ': ['cho'],
+
+            # N, H, M, Y, R rows (complete)
+            'な': ['na'], 'に': ['ni'], 'ぬ': ['nu'], 'ね': ['ne'], 'の': ['no'],
+            'にゃ': ['nya'], 'にゅ': ['nyu'], 'にょ': ['nyo'],
+            'は': ['ha'], 'ひ': ['hi'], 'ふ': ['fu'], 'へ': ['he'], 'ほ': ['ho'],
+            'ば': ['ba'], 'び': ['bi'], 'ぶ': ['bu'], 'べ': ['be'], 'ぼ': ['bo'],
+            'ぱ': ['pa'], 'ぴ': ['pi'], 'ぷ': ['pu'], 'ぺ': ['pe'], 'ぽ': ['po'],
+            'ひゃ': ['hya'], 'ひゅ': ['hyu'], 'ひょ': ['hyo'], 'びゃ': ['bya'],
+            'びゅ': ['byu'], 'びょ': ['byo'],
+            'ま': ['ma'], 'み': ['mi'], 'む': ['mu'], 'め': ['me'], 'も': ['mo'],
+            'みゃ': ['mya'], 'みゅ': ['myu'], 'みょ': ['myo'],
+            'や': ['ya'], 'ゆ': ['yu'], 'よ': ['yo'],
+            'ら': ['ra'], 'り': ['ri'], 'る': ['ru'], 'れ': ['re'], 'ろ': ['ro'],
+            'りゃ': ['rya'], 'りゅ': ['ryu'], 'りょ': ['ryo'], 'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
         }
-        if phoneme in sokuon_combos:
-            return sokuon_combos[phoneme]
-        return phoneme
 
+        phonemes = []
+        i = 0
+        text = text.strip()
 
-def hiragana_to_romaji(text):
-    # Japanese mora → phoneme mapping
-    mora_map = {
-        # Sokuon (small tsu)
-        'っ': ['っ'],
+        while i < len(text):
+            found = False
 
-        # Vowels (5)
-        'あ': ['a'], 'い': ['i'], 'う': ['u'], 'え': ['e'], 'お': ['o'],
+            # Try longest patterns first (3-char → 2-char → 1-char)
+            for length in [3, 2, 1]:
+                for mora, phones in mora_map.items():
+                    if len(mora) == length and text[i:i + length] == mora:
+                        phonemes.extend(phones)
+                        i += length
+                        found = True
+                        break
+                if found:
+                    break
 
-        # K-row (かきくけこ) + dakuten/handakuten + yoon + sokuon
-        'か': ['ka'], 'き': ['ki'], 'く': ['ku'], 'け': ['ke'], 'こ': ['ko'],
-        'が': ['ga'], 'ぎ': ['gi'], 'ぐ': ['gu'], 'げ': ['ge'], 'ご': ['go'],
-        'きゃ': ['kya'], 'きゅ': ['kyu'], 'きょ': ['kyo'],
-        'ぎゃ': ['gya'], 'ぎゅ': ['gyu'], 'ぎょ': ['gyo'],
-        'っか': ['っ', 'ka'], 'っき': ['っ', 'ki'], 'っく': ['っ', 'ku'],
-        'っけ': ['っ', 'ke'], 'っこ': ['っ', 'ko'],
-        'っが': ['っ', 'ga'], 'っぎ': ['っ', 'gi'], 'っぐ': ['っ', 'gu'],
+            if not found:
+                i += 1  # Skip unknown chars
 
-        # S-row (さしすせそ)
-        'さ': ['sa'], 'し': ['shi'], 'す': ['su'], 'せ': ['se'], 'そ': ['so'],
-        'ざ': ['za'], 'じ': ['ji'], 'ず': ['zu'], 'ぜ': ['ze'], 'ぞ': ['zo'],
-        'しゃ': ['sha'], 'しゅ': ['shu'], 'しょ': ['sho'],
-        'じゃ': ['ja'], 'じゅ': ['ju'], 'じょ': ['jo'],
-
-        # T-row (たちつてと)
-        'た': ['ta'], 'ち': ['chi'], 'つ': ['tsu'], 'て': ['te'], 'と': ['to'],
-        'だ': ['da'], 'ぢ': ['ji'], 'づ': ['zu'], 'で': ['de'], 'ど': ['do'],
-        'ちゃ': ['cha'], 'ちゅ': ['chu'], 'ちょ': ['cho'],
-        'っつ': ['っ', 'tsu'],
-
-        # N-row (なにぬねの)
-        'な': ['na'], 'に': ['ni'], 'ぬ': ['nu'], 'ね': ['ne'], 'の': ['no'],
-        'にゃ': ['nya'], 'にゅ': ['nyu'], 'にょ': ['nyo'],
-
-        # H-row (はひふへほ) + p/b
-        'は': ['ha'], 'ひ': ['hi'], 'ふ': ['fu'], 'へ': ['he'], 'ほ': ['ho'],
-        'ば': ['ba'], 'び': ['bi'], 'ぶ': ['bu'], 'べ': ['be'], 'ぼ': ['bo'],
-        'ぱ': ['pa'], 'ぴ': ['pi'], 'ぷ': ['pu'], 'ぺ': ['pe'], 'ぽ': ['po'],
-        'ひゃ': ['hya'], 'ひゅ': ['hyu'], 'ひょ': ['hyo'],
-        'びゃ': ['bya'], 'びゅ': ['byu'], 'びょ': ['byo'],
-
-        # M-row (まみむめも)
-        'ま': ['ma'], 'み': ['mi'], 'む': ['mu'], 'め': ['me'], 'も': ['mo'],
-        'みゃ': ['mya'], 'みゅ': ['myu'], 'みょ': ['myo'],
-
-        # Y-row (やゆよ)
-        'や': ['ya'], 'ゆ': ['yu'], 'よ': ['yo'],
-
-        # R-row (らりるれろ)
-        'ら': ['ra'], 'り': ['ri'], 'る': ['ru'], 'れ': ['re'], 'ろ': ['ro'],
-        'りゃ': ['rya'], 'りゅ': ['ryu'], 'りょ': ['ryo'],
-
-        # W-row + N
-        'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
-    }
-
-    phonemes = []
-    i = 0
-    text = text.strip()
-
-    while i < len(text):
-        # 3-char patterns (っか, っきゃ etc.)
-        found = False
-        for mora, phones in mora_map.items():
-            if len(mora) == 3 and text[i:i + 3] == mora:
-                phonemes.extend(phones)
-                i += 3
-                found = True
-                break
-
-        if found: continue
-
-        # 2-char patterns (きゃ, しゃ etc.)
-        for mora, phones in mora_map.items():
-            if len(mora) == 2 and text[i:i + 2] == mora:
-                phonemes.extend(phones)
-                i += 2
-                found = True
-                break
-
-        if found: continue
-
-        # 1-char patterns (か, あ etc.)
-        for mora, phones in mora_map.items():
-            if len(mora) == 1 and text[i:i + 1] == mora:
-                phonemes.extend(phones)
-                i += 1
-                found = True
-                break
-
-        if not found:
-            i += 1  # Skip unknown chars
-
-    return phonemes
+        return phonemes
 
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3):
@@ -233,7 +197,8 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
             parts[current_part] = []
         elif line:
             parts[current_part].append(line)
-            phonemes = hiragana_to_romaji(line)
+            # ✅ FIXED: Use class method instead of standalone function
+            phonemes = HiroUSTGenerator.hiragana_to_romaji(line)
             all_elements.extend(phonemes)
             all_elements.append(f"PAUSE_LINE:{line_pause}")
 
@@ -241,7 +206,6 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
         all_elements.pop()
 
     return parts, all_elements
-
 
 class MotifMemory:
     def __init__(self, motif_length=4):
@@ -366,7 +330,7 @@ class MelodyBrain:
 
 
 # Global melody brain
-melody_brain = MelodyBrain()
+# melody_brain = MelodyBrain()
 
 VOWEL_CHARS = 'あいうえお'
 CONSONANT_CHARS = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
@@ -388,8 +352,8 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0)
 
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
-                intone_level, length_var, stretch_prob, flat_mode=False,
-                quartertone_mode=False, lyrical_mode=True, use_motifs=True):
+                intone_level, length_var, stretch_prob, melody_brain,
+                flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True):
     generator = HiroUSTGenerator()
     project_name = str(project_name)
 
@@ -435,15 +399,16 @@ Mode2=True
             # Process phoneme with stretching
             romaji_phoneme = element
 
+            # ✅ FIXED: Proper sokuon handling for UTAU
             if romaji_phoneme == 'っ':
-                note_length = 120
-                note_num = melody_brain.get_smart_note(root_key, scale, 'tsu', intone_level, flat_mode,
-                                                       quartertone_mode, use_motifs)
-                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=tsu\nNoteNum={int(note_num)}\n'
-                ust += f'PreUtterance=10\nVoiceOverlap=0\nIntensity=60\n'
-                ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,10,35,0,100,100,0\n'
+                # Small tsu = GEMINATION, not "tsu" sound!
+                # For UTAU: use REST + next phoneme will double naturally
+                note_length = 60  # Very short rest for gemination effect
+                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=R\nNoteNum={int(root_key)}\n'
+                ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\n'
+                ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
-                continue
+                continue  # Skip to next phoneme (which gets doubled naturally)
 
             hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
             stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3)
@@ -583,7 +548,7 @@ class USTGeneratorApp:
         ttk.Label(melody_panel, text="Intone:").pack(anchor="w", pady=(8, 0))
         self.intone_var = ttk.Combobox(melody_panel, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
                                        state="readonly", width=15)
-        self.intone_var.set("Tight (1)")
+        self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
 
         # Panel 4: Output (Right)
@@ -601,10 +566,9 @@ class USTGeneratorApp:
         ttk.Button(btn_frame, text="📋 Preview Phonemes", command=self.preview_phonemes).pack(fill="x", pady=(0, 6))
         ttk.Button(btn_frame, text="🧹 Clear All", command=self.clear).pack(fill="x")
 
-        # =============== STATUS + PREVIEW (Bottom 25%) ===============
+        # Status + Preview (unchanged)
         status_frame = ttk.Frame(root)
         status_frame.pack(fill="x", padx=15, pady=(0, 10))
-
         self.status_var = tk.StringVar(value="✅ Ready - All controls visible!")
         ttk.Label(status_frame, textvariable=self.status_var, relief="sunken", anchor="w").pack(fill="x")
 
@@ -613,23 +577,18 @@ class USTGeneratorApp:
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
-    def preview_phonemes(self):
-        lyrics = self.lyrics_text.get("1.0", tk.END).strip()
-        parts, elements = parse_song_structure(lyrics)
-        preview = "Phoneme Preview (first 20):\n\n"
-        for i, elem in enumerate(elements[:20]):
-            if not elem.startswith('PAUSE'):
-                preview += f"{i:2d}: {elem} → {HiroUSTGenerator().romaji_to_hiragana(elem)}\n"
-        self.preview_text.config(state="normal")
-        self.preview_text.delete("1.0", tk.END)
-        self.preview_text.insert("1.0", preview)
-        self.preview_text.config(state="disabled")
+        # 🚨 THESE METHODS MUST BE **INDENTED AT CLASS LEVEL** (same level as __init__)
 
-    def generate_ust(self):
+    def _generate_content(self):
+        """Extracted common UST generation logic - NO DUPLICATION!"""
         try:
-            global melody_brain
-            melody_brain = MelodyBrain()
+            melody_brain = MelodyBrain()  # Fresh brain each generation
+
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+            if not lyrics:
+                self.status_var.set("❌ Lyrics cannot be empty!")
+                return None
+
             parts, elements = parse_song_structure(
                 lyrics,
                 int(self.line_pause_var.get()),
@@ -643,142 +602,109 @@ class USTGeneratorApp:
                 float(self.tempo_var.get()), int(self.length_var.get()),
                 root_key, self.scale_var.get(), self.intone_var.get(),
                 float(self.length_var_ctrl.get()), float(self.stretch_var.get()),
+                melody_brain,
                 self.flat_var.get(), self.quartertone_var.get(),
                 self.lyrical_mode_var.get(), self.motif_var.get()
             )
+            return ust_content
+        except Exception as e:
+            self.status_var.set(f"❌ Generation error: {str(e)}")
+            return None
 
-            # NEW: File save dialog
-            default_name = f"{self.project_var.get()}.ust"
-            # PyInstaller-compatible directory detection
-            if getattr(sys, 'frozen', False):
-                current_dir = os.path.dirname(sys.executable)  # EXE location
-            else:
-                current_dir = os.path.dirname(os.path.abspath(__file__))  # Script location
-            suggested_path = os.path.join(current_dir, default_name)
+    def generate_ust(self):
+        """Generate + Auto-save to project dir"""
+        ust_content = self._generate_content()
+        if not ust_content:
+            return
 
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".ust",
-                filetypes=[("UST files", "*.ust"), ("All files", "*.*")],
-                initialfile=default_name,  # Just filename in titlebar
-                initialdir=current_dir,  # Opens in script's directory by default
-                title=f"Save UST - Default: {os.path.basename(suggested_path)}"
-            )
+        # PyInstaller-compatible path
+        if getattr(sys, 'frozen', False):
+            save_dir = os.path.dirname(sys.executable)
+        else:
+            save_dir = os.path.dirname(os.path.abspath(__file__))
 
-            if filename:  # User didn't cancel
-                with open(filename, 'w', encoding='utf-8-sig') as f:
-                    f.write(ust_content)
-                self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
-            else:
-                self.status_var.set("❌ Save cancelled")
+        filename = os.path.join(save_dir, f"{self.project_var.get().replace(' ', '_')}.ust")
 
+        try:
+            with open(filename, 'w', encoding='utf-8-sig') as f:
+                f.write(ust_content)
+            self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
+
+            # Preview first 600 chars
             self.preview_text.config(state="normal")
             self.preview_text.delete("1.0", tk.END)
             self.preview_text.insert("1.0", f"✅ UST Ready:\n\n{ust_content[:600]}...")
             self.preview_text.config(state="disabled")
         except Exception as e:
-            self.status_var.set(f"❌ Error: {str(e)}")
+            self.status_var.set(f"❌ Save failed: {str(e)}")
 
     def save_ust_only(self):
-        try:
-            # Generate content without saving
-            global melody_brain
-            melody_brain = MelodyBrain()
-            lyrics = self.lyrics_text.get("1.0", tk.END).strip()
-            parts, elements = parse_song_structure(lyrics, int(self.line_pause_var.get()),
-                                                   int(self.section_pause_var.get()))
-            root_key = KEY_ROOTS[self.voice_var.get()]
-            ust_content = text_to_ust(elements, str(self.project_var.get()), float(self.tempo_var.get()),
-                                      int(self.length_var.get()), root_key, self.scale_var.get(),
-                                      self.intone_var.get(), float(self.length_var_ctrl.get()),
-                                      float(self.stretch_var.get()), self.flat_var.get(),
-                                      self.quartertone_var.get(), self.lyrical_mode_var.get(), self.motif_var.get())
+        """Generate + Save-As dialog ONLY"""
+        ust_content = self._generate_content()
+        if not ust_content:
+            return
 
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".ust",
-                filetypes=[("UST files", "*.ust")],
-                initialfile=f"{self.project_var.get()}.ust",
-                # PyInstaller-compatible directory detection
-                initialdir=os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(
-                    os.path.abspath(__file__))
-            )
+        default_name = f"{self.project_var.get()}.ust"
+        if getattr(sys, 'frozen', False):
+            initial_dir = os.path.dirname(sys.executable)
+        else:
+            initial_dir = os.path.dirname(os.path.abspath(__file__))
 
-            if filename:
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".ust",
+            filetypes=[("UST files", "*.ust"), ("All files", "*.*")],
+            initialfile=default_name,
+            initialdir=initial_dir,
+            title=f"Save UST as..."
+        )
+
+        if filename:
+            try:
                 with open(filename, 'w', encoding='utf-8-sig') as f:
                     f.write(ust_content)
                 self.status_var.set(f"✅ Saved {os.path.basename(filename)}")
-        except Exception as e:
-            self.status_var.set(f"❌ Error: {str(e)}")
-
-    def clear(self):
-        self.lyrics_text.delete("1.0", tk.END)
-        self.lyrics_text.insert("1.0", """[Verse 1]
-きゃっきゃ うれし いたい さぶり""")
-        self.preview_text.config(state="normal")
-        self.preview_text.delete("1.0", tk.END)
-        self.preview_text.config(state="disabled")
-        self.status_var.set("✅ Ready!")
+            except Exception as e:
+                self.status_var.set(f"❌ Save failed: {str(e)}")
 
     def preview_phonemes(self):
+        """SINGLE unified phoneme preview - NO DUPLICATES"""
         lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+        if not lyrics:
+            self.status_var.set("❌ No lyrics to preview")
+            return
+
         parts, elements = parse_song_structure(lyrics)
-        preview = "\n\n"
-        for i, elem in enumerate(elements[:20]):  # First 20
-            if not elem.startswith('PAUSE'):
-                preview += f"{i}: {elem} → {HiroUSTGenerator().romaji_to_hiragana(elem)}\n"
+        preview = "Phoneme Breakdown (first 25):\n\n"
+
+        for i, elem in enumerate(elements[:25]):
+            if elem.startswith('PAUSE'):
+                preview += f"{i:2d}: [PAUSE {elem.split(':')[1]}ms]\n"
+            else:
+                generator = HiroUSTGenerator()
+                hiragana = generator.romaji_to_hiragana(elem)
+                preview += f"{i:2d}: {elem:8} → {hiragana}\n"
+
         self.preview_text.config(state="normal")
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.insert("1.0", preview)
         self.preview_text.config(state="disabled")
-
-    def generate_ust(self):
-        try:
-            global melody_brain
-            melody_brain = MelodyBrain()
-            lyrics = self.lyrics_text.get("1.0", tk.END).strip()
-            parts, elements = parse_song_structure(
-                lyrics,
-                int(self.line_pause_var.get()),
-                int(self.section_pause_var.get())
-            )
-
-            root_key = KEY_ROOTS[self.voice_var.get()]
-
-            ust_content = text_to_ust(
-                elements,  # 1
-                str(self.project_var.get()),  # 2
-                float(self.tempo_var.get()),  # 3
-                int(self.length_var.get()),  # 4
-                root_key,  # 5
-                self.scale_var.get(),  # 6
-                self.intone_var.get(),  # 7
-                float(self.length_var_ctrl.get()),  # 8
-                float(self.stretch_var.get()),  # 9
-                self.flat_var.get(),  # 10
-                self.quartertone_var.get(),  # 11
-                self.lyrical_mode_var.get(),  # 12
-                self.motif_var.get()  # 13
-            )
-
-            filename = f"{str(self.project_var.get()).replace(' ', '_')}.ust"
-            with open(filename, 'w', encoding='utf-8-sig') as f:
-                f.write(ust_content)
-
-            self.status_var.set(f"✅ Saved {filename}!")
-            self.preview_text.config(state="normal")
-            self.preview_text.delete("1.0", tk.END)
-            self.preview_text.insert("1.0", f"✅ FIXED: {filename}\n\n{ust_content[:600]}...")
-            self.preview_text.config(state="disabled")
-        except Exception as e:
-            self.status_var.set(f"❌ Error: {str(e)}")
+        self.status_var.set(f"✅ Previewed {len([e for e in elements if not e.startswith('PAUSE')])} phonemes")
 
     def clear(self):
+        """Unified clear method"""
         self.lyrics_text.delete("1.0", tk.END)
-        self.lyrics_text.insert("1.0", """[Verse 1]
-きゃっきゃ うれし いたい さぶり""")
+        default_lyrics = """[Verse 1]
+        きゃっきゃ うれし いたい さぶり
+        ゆびさき きりさけ あかい つゆ
+
+        [Chorus]
+        いたみ いたみ きもちいい"""
+        self.lyrics_text.insert("1.0", default_lyrics)
+
         self.preview_text.config(state="normal")
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.config(state="disabled")
-        self.status_var.set("Ready")
+        self.status_var.set("✅ Cleared & Ready!")
 
 
 if __name__ == "__main__":
