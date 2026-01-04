@@ -88,17 +88,7 @@ class HiroUSTGenerator:
         }
 
     def romaji_to_hiragana(self, phoneme):
-        # Handle repeated sokuon patterns like "tsutsu tsutsu tsutsu"
-        if phoneme == 'tsutsu':
-            return 'っつ'
-
-        # Long vowel support
-        if len(phoneme) >= 2 and phoneme[1] in 'aiueo':
-            base = phoneme[0]
-            if base in self.hiragana_map:
-                return self.hiragana_map[base] * 2  # ああ, いい, etc.
-
-        # Special sokuon combos
+        # SPECIAL SOKUON COMBOS ONLY - otherwise RETURN ROMAJI
         sokuon_combos = {
             'katsu': 'っか', 'kitsu': 'っき', 'kutsu': 'っく', 'ketsu': 'っけ', 'kotsu': 'っこ',
             'tatsu': 'った', 'chitsu': 'っち', 'setsu': 'っせ', 'sotsu': 'っそ', 'tsutsu': 'っつ',
@@ -107,10 +97,8 @@ class HiroUSTGenerator:
 
         if phoneme in sokuon_combos:
             return sokuon_combos[phoneme]
+        return phoneme  # Returns 'な'→'な', 'tsu'→'tsu'
 
-        if phoneme in self.hiragana_map:
-            return self.hiragana_map[phoneme]
-        return phoneme  # Fallback
 
 def hiragana_to_romaji(text):
     # COMPLETE Japanese mora → phoneme mapping
@@ -240,6 +228,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
     return parts, all_elements
 
+
 class MotifMemory:
     def __init__(self, motif_length=4):
         self.motif_length = motif_length  # 3-5 notes
@@ -288,6 +277,7 @@ class MotifMemory:
             return "No motifs stored"
         return " | ".join([f"[{','.join(map(str, m))}]" for m in self.stored_motifs])
 
+
 class MelodyBrain:
     def __init__(self):
         self.last_note = 0
@@ -312,14 +302,14 @@ class MelodyBrain:
             self.recent_notes.pop(0)
             self.motif_memory.add_motif(self.recent_notes)  # Learn motif
 
-        # 🎵 PHRASE ENDINGS first
+        # PHRASE ENDINGS first
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
             self.last_note = random.choice([0, 7])  # Tonic or dominant
             self.phrase_len = 1
             target_note = self.last_note
         else:
-            # 🎵 MOTIF MEMORY (toggleable!)
+            # MOTIF MEMORY (toggleable!)
             if use_motifs:
                 target_note = self.motif_memory.get_motif_note(
                     self.last_note, scale, use_motif_prob=0.4)
@@ -362,6 +352,7 @@ class MelodyBrain:
         if phrase_progress > 0.8:
             base += 15
         return max(50, min(120, base))
+
 
 # Global melody brain
 melody_brain = MelodyBrain()
@@ -428,9 +419,21 @@ Mode2=True
                 ust += f'VoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
                 ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
+
         else:
             # Process phoneme with stretching
             romaji_phoneme = element
+
+            if romaji_phoneme == 'っ':
+                note_length = 120
+                note_num = melody_brain.get_smart_note(root_key, scale, 'tsu', intone_level, flat_mode,
+                                                       quartertone_mode, use_motifs)
+                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=tsu\nNoteNum={int(note_num)}\n'
+                ust += f'PreUtterance=10\nVoiceOverlap=0\nIntensity=60\n'
+                ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,10,35,0,100,100,0\n'
+                note_id += 1
+                continue
+
             hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
             stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3)
 
@@ -621,7 +624,6 @@ class USTGeneratorApp:
             self.preview_text.config(state="disabled")
         except Exception as e:
             self.status_var.set(f"❌ Error: {str(e)}")
-
 
     def clear(self):
         self.lyrics_text.delete("1.0", tk.END)
