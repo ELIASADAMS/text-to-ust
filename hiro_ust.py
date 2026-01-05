@@ -733,16 +733,16 @@ class USTGeneratorApp:
             return None
 
     def generate_ust(self):
-        """Generate + Auto-save to project dir"""
+        """Generate + Auto-save NEXT TO EXE"""
         ust_content = self._generate_content()
         if not ust_content:
             return
 
-        # PyInstaller-compatible path
+        # ✅ Save NEXT TO EXE (not temp folder)
         if getattr(sys, 'frozen', False):
-            initial_dir = sys._MEIPASS
+            save_dir = os.path.dirname(sys.executable)  # EXE folder
         else:
-            initial_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.dirname(os.path.abspath(__file__))  # Script folder
 
         filename = os.path.join(save_dir, f"{self.project_var.get().replace(' ', '_')}.ust")
 
@@ -767,6 +767,8 @@ class USTGeneratorApp:
             initial_dir = sys._MEIPASS
         else:
             initial_dir = os.path.dirname(os.path.abspath(__file__))
+
+        default_name = f"{self.project_var.get()}.ust"
 
         filename = filedialog.asksaveasfilename(
             defaultextension=".ust",
