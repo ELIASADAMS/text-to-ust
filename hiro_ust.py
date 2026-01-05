@@ -472,8 +472,15 @@ class USTGeneratorApp:
         self.root.minsize(850, 850)
 
         try:
-            self.root.iconbitmap("hibiki.ico")
-            print("✅ Logo loaded: hibiki.ico")
+            if getattr(sys, 'frozen', False):
+                # PyInstaller EXE: Use bundled temp folder
+                icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
+            else:
+                # Development: Use local file
+                icon_path = 'hibiki.ico'
+
+            self.root.iconbitmap(icon_path)
+            print("✅ Logo loaded:", icon_path)
         except:
             print("⚠️ hibiki.ico not found - using default")
 
@@ -733,9 +740,9 @@ class USTGeneratorApp:
 
         # PyInstaller-compatible path
         if getattr(sys, 'frozen', False):
-            save_dir = os.path.dirname(sys.executable)
+            initial_dir = sys._MEIPASS
         else:
-            save_dir = os.path.dirname(os.path.abspath(__file__))
+            initial_dir = os.path.dirname(os.path.abspath(__file__))
 
         filename = os.path.join(save_dir, f"{self.project_var.get().replace(' ', '_')}.ust")
 
@@ -756,9 +763,8 @@ class USTGeneratorApp:
         if not ust_content:
             return
 
-        default_name = f"{self.project_var.get()}.ust"
         if getattr(sys, 'frozen', False):
-            initial_dir = os.path.dirname(sys.executable)
+            initial_dir = sys._MEIPASS
         else:
             initial_dir = os.path.dirname(os.path.abspath(__file__))
 
