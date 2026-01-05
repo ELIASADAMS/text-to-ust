@@ -80,8 +80,13 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     return [(phoneme, 1.0)]
 
 
-def parse_song_structure(text, line_pause=960, section_pause=1920):
-    parts = {"Main": []}  # Default fallback
+def parse_song_structure(
+        text,
+        line_pause=960,
+        section_pause=1920,
+        on_warning=None
+):
+    parts = {"Main": []}
     current_part = "Main"
     all_elements = []
 
@@ -96,12 +101,14 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
         if line.startswith('[') and line.endswith(']') and len(line) > 2:
             section_name = line[1:-1].strip()
             if section_name:
-                if all_elements:  # Add pause before new section
+                if all_elements:
                     all_elements.append(f"PAUSE_SECTION:{section_pause}")
                 current_part = section_name
-                parts[current_part] = []  # Initialize new section
+                parts[current_part] = []
             else:
-                print(f"⚠️ Empty section '['']' on line {line_num} - using 'Main'")
+                msg = f"⚠️ Empty section '[]' on line {line_num} - using 'Main'"
+                if on_warning:
+                    on_warning(msg)
 
         elif line:
             try:
@@ -112,12 +119,14 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
                     all_elements.extend(phonemes)
                     all_elements.append(f"PAUSE_LINE:{line_pause}")
                 else:
-                    # SKIP BAD LINES, don't crash
-                    self.status_var.set(f"⚠️ Skipped invalid line {line_num}: '{line[:20]}...'")
+                    msg = f"⚠️ Skipped invalid line {line_num}: '{line[:20]}...'"
+                    if on_warning:
+                        on_warning(msg)
             except Exception as e:
-                # LOG but continue
-                print(f"⚠️ Parse error line {line_num}: '{line}' → {e}")
-                continue  # Skip this line entirely
+                msg = f"⚠️ Parse error line {line_num}: '{line}' → {e}"
+                if on_warning:
+                    on_warning(msg)
+                continue
 
     if all_elements and all_elements[-1].startswith("PAUSE_LINE"):
         all_elements.pop()
@@ -184,18 +193,6 @@ class MelodyBrain:
         self.VOWEL_CHARS = VOWEL_CHARS
         self.CONSONANT_CHARS = CONSONANT_CHARS
 
-        def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False,
-                            quarter_tone=False, use_motifs=True, chord_mode=False):
-            """Fallback random note generator when lyrical_mode=False"""
-            scale = SCALES[scale_name]
-            if flat_mode:
-                return root_midi + 0
-
-            base_semitone = random.choice(scale)
-            if quarter_tone and random.random() < 0.5:
-                base_semitone += random.choice([0, 0.5, -0.5])
-            return root_midi + base_semitone
-
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
                        quarter_tone=False, use_motifs=True, chord_mode=False):
         scale = SCALES[scale_name]
@@ -235,24 +232,23 @@ class MelodyBrain:
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
                     target_note = random.choice(cons_notes)
 
-            # CHORD PROGRESSION AWARENESS (NEW)
+            # CHORD PROGRESSION AWARENESS
             if chord_mode:
-                beat_pos = (self.phrase_len - 1) % 8  # 0-7 cycle
-                if beat_pos in [0, 1, 2]:  # I chord (C)
-                    chord_root = 0
-                elif beat_pos in [3, 4]:  # IV chord (F)
-                    chord_root = 5
-                elif beat_pos in [5, 6, 7]:  # V chord (G)
-                    chord_root = 7
+                beat_pos = (self.phrase_len - 1) % 8
+                if beat_pos in [0, 1, 2]:
+                    chord_root = 0  # I
+                elif beat_pos in [3, 4]:
+                    chord_root = 5  # IV
+                elif beat_pos in [5, 6, 7]:
+                    chord_root = 7  # V
                 else:
                     chord_root = None
 
                 if chord_root is not None:
-                    # Chord tones: root, 3rd, 5th
                     chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
                     chord_tones = [n for n in chord_tones if n in scale]
                     if chord_tones:
-                        target_note = random.choice(chord_tones) * 0.7 + target_note * 0.3
+                        target_note = min(chord_tones, key=lambda x: abs(x - target_note))
 
         # Voice leading + snap to scale
         max_leap = settings["leap"]
@@ -327,40 +323,29 @@ Mode2=True
 
     note_id = 0
     for element in text_elements:
-        if element.startswith("PAUSE"):
-            # RESET PHRASE STATE ON PAUSES
+        if element.startswith("PAUSE_LINE:"):
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
-
             pause_length = int(element.split(":")[1])
-            if "LINE" in element:
-                num_rests = pause_length // 240
-                for _ in range(num_rests):
-                    ust += f'\n[#{note_id:04d}]\nLength=240\nLyric=R\nNoteNum=60\n'
-                    ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                    ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                    note_id += 1
-            else:  # SECTION pause
-                num_rests = pause_length // 480
-                for _ in range(num_rests):
-                    ust += f'\n[#{note_id:04d}]\nLength=480\nLyric=R\nNoteNum=60\n'
-                    ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                    ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                    note_id += 1
-            continue  # Skip to next element
+            num_rests = pause_length // 240
+            for _ in range(num_rests):
+                ust += f'\n[#{note_id:04d}]\nLength=240\nLyric=R\nNoteNum=60\n'
+                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
+                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
+                note_id += 1
+            continue
 
-        elif element.startswith("PAUSE_SECTION:"):
+        if element.startswith("PAUSE_SECTION:"):
+            melody_brain.phrase_len = 0
+            melody_brain.recent_notes.clear()
             pause_length = int(element.split(":")[1])
             num_rests = pause_length // 480
             for _ in range(num_rests):
-                phrase_progress = melody_brain.phrase_len / 12.0
-                intensity = melody_brain.get_intensity(melody_brain.last_note, melody_brain.phrase_len / 12.0)
-                ust += f'Intensity={intensity}\n'
-                ust += f'\n[#{note_id:04d}]\n'
-                ust += f'Length=480\nLyric=R\nNoteNum=60\nPreUtterance=0\n'
-                ust += f'VoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
+                ust += f'\n[#{note_id:04d}]\nLength=480\nLyric=R\nNoteNum=60\n'
+                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
+                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
+            continue
 
         else:
             romaji_phoneme = element
@@ -383,18 +368,17 @@ Mode2=True
                         root_key, scale, stretch_phoneme, intone_level,
                         flat_mode, quartertone_mode, use_motifs, chord_mode=True)
                 else:
-                    note_num = get_random_note(root_key, scale, intone_level, flat_mode, quartertone_mode, use_motifs,
-                                               chord_mode=True)
+                    note_num = get_random_note(root_key, scale, flat_mode=flat_mode, quartertone_mode=quartertone_mode)
 
                 ust += f'\n[#{note_id:04d}]\n'
                 ust += f'Length={note_length}\n'
                 ust += f'Lyric={stretch_phoneme}\n'
                 note_num_safe = int(round(note_num))
                 # QUARTER-TONE: Use PBS/PBW for microtiming
-                if quartertone_mode and note_num != int(note_num):  # Has fractional part
+                if quartertone_mode and note_num != int(note_num):
                     fraction = note_num - int(note_num)
-                    pbs = int(fraction * 50)  # Convert 0.5 → ±25 cents
-                    ust += f'PBS={pbs}\nPBW=10\n'  # 10-tick pitch bend width
+                    pbs = int(fraction * 50)
+                    ust += f'PBS={pbs}\nPBW=10\n'
                 else:
                     ust += f'PBS=0\nPBW=0\n'
                 ust += f'NoteNum={note_num_safe}\n'
@@ -403,7 +387,6 @@ Mode2=True
                 last_note_safe = getattr(melody_brain, 'last_note', 0)
                 intensity = melody_brain.get_intensity(last_note_safe, phrase_progress)
                 ust += f'Intensity={max(50, min(120, intensity))}\n'
-
                 ust += f'StartPoint=0\nEnvelope={envelope}\n'
                 note_id += 1
 
@@ -666,11 +649,7 @@ class USTGeneratorApp:
             melody_brain = MelodyBrain()
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
 
-            parts, elements = parse_song_structure(
-                lyrics,
-                int(self.line_pause_var.get()),
-                int(self.section_pause_var.get())
-            )
+            parts, elements = parse_song_structure(lyrics)
             self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
 
             root_key = KEY_ROOTS[self.voice_var.get()]
