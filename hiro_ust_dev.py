@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import sys
@@ -10,6 +11,9 @@ from hiragana_map import HIRAGANA_MAP
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class HiroUSTGenerator:
@@ -195,62 +199,56 @@ class MelodyBrain:
         self.VOWEL_CHARS = VOWEL_CHARS
         self.CONSONANT_CHARS = CONSONANT_CHARS
 
-    def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
-                       quarter_tone=False, use_motifs=True, chord_mode=False):
+    def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)",
+                       flat_mode=False, quarter_tone=False, use_motifs=True, chord_mode=False,
+                       contour_bias=0, pitch_range=70):  # ← FIXED SIGNATURE
         scale = SCALES[scale_name]
         self.phrase_len += 1
-
         settings = self._get_intone_settings(intone_level)
 
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
 
+        # CONTOUR CONTROL (NEW!)
+        phrase_pos = (self.phrase_len - 1) / max(12, settings["phrase"])
+        contour_curve = contour_bias / 100.0  # -0.5 to +0.5
+        contour_target = (phrase_pos + contour_curve * phrase_pos * (1 - phrase_pos)) * pitch_range
+
         # Store recent notes for motif detection
         self.recent_notes.append(self.last_note)
         if len(self.recent_notes) > 8:
             self.recent_notes.pop(0)
-            self.motif_memory.add_motif(self.recent_notes)  # Learn motif
+            self.motif_memory.add_motif(self.recent_notes)
 
-        # PHRASE ENDINGS
+        # PHRASE ENDINGS + CONTOUR
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
-            self.last_note = random.choice([0, 7])  # Tonic or dominant
+            self.last_note = min(max(0, int(contour_target * 0.8)), 11)
             self.phrase_len = 1
             target_note = self.last_note
         else:
-            # MOTIF MEMORY
             if use_motifs:
-                target_note = self.motif_memory.get_motif_note(
-                    self.last_note, scale, use_motif_prob=0.4)
+                motif_note = self.motif_memory.get_motif_note(self.last_note, scale)
+                target_note = motif_note * 0.6 + contour_target * 0.4  # Blend!
             else:
-                # Revert to Original logic
                 if is_vowel:
                     high_notes = scale[-3:]
-                    target_note = random.choice([4, 7] + high_notes)
+                    target_note = random.choice([4, 7] + high_notes) + contour_target * 0.1
                 elif is_stretch:
                     target_note = self.last_note
                 else:
                     cons_notes = [0, 2, 4, 7]
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
-                    target_note = random.choice(cons_notes)
+                    target_note = random.choice(cons_notes) + contour_target * 0.1
 
-            # CHORD PROGRESSION AWARENESS
+            # FIXED CHORD PROGRESSION
             if chord_mode:
                 beat_pos = (self.phrase_len - 1) % 8
-                if beat_pos in [0, 1, 2]:
-                    chord_root = 0  # I
-                elif beat_pos in [3, 4]:
-                    chord_root = 5  # IV
-                elif beat_pos in [5, 6, 7]:
-                    chord_root = 7  # V
-                else:
-                    chord_root = None
-
-                if chord_root is not None:
-                    chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
-                    chord_tones = [n for n in chord_tones if n in scale]
-                    if chord_tones:
-                        target_note = min(chord_tones, key=lambda x: abs(x - target_note))
+                chord_root = {0: 0, 3: 5, 5: 7}.get(beat_pos // 3 % 3, 0)  # I-IV-V cycle
+                chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
+                chord_tones = [n for n in chord_tones if n in scale]  # FIXED!
+                if chord_tones:
+                    target_note = min(chord_tones, key=lambda x: abs(x - target_note))
 
         # Voice leading + snap to scale
         max_leap = settings["leap"]
@@ -261,9 +259,9 @@ class MelodyBrain:
 
         if quarter_tone and random.random() < 0.3 and is_vowel:
             self.last_note += random.choice([0, 0.5, -0.5])
-
         if flat_mode:
-            self.last_note = 0
+            self.last_note = 5  # Scale middle
+
         return root_midi + self.last_note
 
     def _get_intone_settings(self, intone_level):
@@ -305,7 +303,8 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, melody_brain,
                 pre_utterance=25, voice_overlap=10, intensity_base=80, envelope="0,10,35,0,100,100,0",
-                flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False):
+                flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False,
+                contour_bias=0, pitch_range=70):
     generator = HiroUSTGenerator()
     project_name = str(project_name)
 
@@ -368,7 +367,8 @@ Mode2=True
                 if lyrical_mode:
                     note_num = melody_brain.get_smart_note(
                         root_key, scale, stretch_phoneme, intone_level,
-                        flat_mode, quartertone_mode, use_motifs, chord_mode=True)
+                        flat_mode, quartertone_mode, use_motifs, chord_mode,
+                        contour_bias, pitch_range)
                 else:
                     note_num = get_random_note(root_key, scale, flat_mode=flat_mode, quartertone_mode=quartertone_mode)
 
@@ -426,9 +426,9 @@ class USTGeneratorApp:
                 icon_path = 'hibiki.ico'
 
             self.root.iconbitmap(icon_path)
-            print("✅ Logo loaded:", icon_path)
+            logger.info(f"Logo loaded: {icon_path}")
         except:
-            print("⚠️ hibiki.ico not found - using default")
+            logger.warning("hibiki.ico not found - using default")
 
         # =============== MAIN LYRICS ===============
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
@@ -531,6 +531,17 @@ class USTGeneratorApp:
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
 
+        # CONTOUR CONTROLS
+        ttk.Label(melody_panel, text="Curve:").pack(anchor="w")
+        self.contour_var = tk.StringVar(value="0")
+        ttk.Scale(melody_panel, from_=-50, to=50, orient="horizontal",
+                  variable=self.contour_var, length=100).pack(fill="x", pady=(0, 2))  # ← 100px
+
+        ttk.Label(melody_panel, text="Range:").pack(anchor="w")
+        self.range_var = tk.StringVar(value="70")
+        ttk.Scale(melody_panel, from_=40, to=120, orient="horizontal",
+                  variable=self.range_var, length=100).pack(fill="x", pady=(0, 8))  # ← 100px
+
         # Panel 4: UST + Output (COMBINED)
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
         output_panel.pack(side="right", fill="both", expand=True)
@@ -555,7 +566,7 @@ class USTGeneratorApp:
 
         ttk.Label(ust_frame, text="E:").grid(row=0, column=6, sticky="w")
         self.envelope_var = tk.StringVar(value="Pop")
-        env_presets = ["Pop", "Rock", "Breathy", "Sharp"]
+        env_presets = ["Pop", "Rock", "Breathy", "Sharp", "Opera", "Whisper", "Belt", "Falsetto", "Growl", "Vibrato"]
         self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
@@ -596,7 +607,13 @@ class USTGeneratorApp:
             "Pop": "0,10,35,0,100,100,0",
             "Rock": "0,20,50,0,90,80,0",
             "Breathy": "0,5,20,0,70,100,0",
-            "Sharp": "0,30,70,0,100,50,0"
+            "Sharp": "0,30,70,0,100,50,0",
+            "Opera": "0,5,15,0,100,95,0",
+            "Whisper": "0,2,10,0,60,100,0",
+            "Belt": "0,25,60,0,100,70,0",
+            "Falsetto": "0,8,25,0,80,100,0",
+            "Growl": "0,40,70,0,85,60,0",
+            "Vibrato": "0,15,40,20,100,80,0"
         }
         return presets.get(preset_name, "0,10,35,0,100,100,0")
 
@@ -655,7 +672,7 @@ class USTGeneratorApp:
             return None
 
         try:
-            melody_brain = MelodyBrain()
+            melody_brain = MelodyBrain(seed=int(self.seed_var.get()))
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
 
             parts, elements = parse_song_structure(lyrics)
@@ -672,12 +689,17 @@ class USTGeneratorApp:
                 self._get_envelope_preset(self.envelope_var.get()),
                 self.flat_var.get(), self.quartertone_var.get(),
                 self.lyrical_mode_var.get(), self.motif_var.get(),
-                self.chord_var.get()
+                self.chord_var.get(),
+                contour_bias=float(self.contour_var.get()),
+                pitch_range=float(self.range_var.get())
             )
             return ust_content
         except Exception as e:
             self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
+
+            logger.info(f"Generated UST with seed={self.seed_var.get()}, {len(elements)} phonemes")
+            return ust_content
 
     def generate_ust(self):
         """Generate + Auto-save NEXT TO EXE"""
