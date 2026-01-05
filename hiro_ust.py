@@ -314,23 +314,6 @@ class MelodyBrain:
                     if chord_tones:
                         target_note = random.choice(chord_tones) * 0.7 + target_note * 0.3  # Blend
 
-            # CHORD AWARENESS (NEW - after motif selection)
-        if chord_mode and self.phrase_len % 8 in [0, 1, 2]:  # I chord (C)
-            chord_root = 0
-        elif chord_mode and self.phrase_len % 8 in [3, 4]:  # IV chord (F)
-            chord_root = 5
-        elif chord_mode and self.phrase_len % 8 in [5, 6, 7]:  # V chord (G)
-            chord_root = 7
-        else:
-            chord_root = None
-
-        if chord_root is not None:
-            # Bias toward chord tones [root, 3rd, 5th]
-            chord_tones = [chord_root, (chord_root + 4) % 12, (chord_root + 7) % 12]
-            chord_tones = [n for n in chord_tones if n in scale]  # Scale-safe
-            if chord_tones:
-                target_note = random.choice(chord_tones)
-
         # Voice leading + snap to scale
         max_leap = settings["leap"]
         motion = max(-max_leap, min(max_leap, target_note - self.last_note))
@@ -468,8 +451,8 @@ Mode2=True
     return ust
 
 
-def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False, quarter_tone=False):
-    """Safe random note - works with/without brain"""
+def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False,
+                    quarter_tone=False, use_motifs=True, chord_mode=False):
     scale = SCALES[scale_name]
     if flat_mode:
         return root_midi + 0
@@ -477,7 +460,6 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
     base_semitone = random.choice(scale)
     if quarter_tone and random.random() < 0.5:
         base_semitone += random.choice([0, 0.5, -0.5])
-
     return root_midi + base_semitone
 
 
@@ -821,18 +803,13 @@ class USTGeneratorApp:
 
     def clear(self):
         self.lyrics_text.delete("1.0", tk.END)
-        default_lyrics = """[Verse 1]
-        きゃっきゃ うれし いたい さぶり
-        ゆびさき きりさけ あかい つゆ
 
-        [Chorus]
-        いたみ いたみ きもちいい"""
-        self.lyrics_text.insert("1.0", default_lyrics)
-
+        # Clear preview only
         self.preview_text.config(state="normal")
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.config(state="disabled")
-        self.status_var.set("✅ Cleared & Ready!")
+
+        self.status_var.set("🧹 Lyrics cleared ✓")
 
     def save_preset(self):
         preset = {
