@@ -97,7 +97,6 @@ class HiroUSTGenerator:
             'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
         }
 
-        # Build trie once at startup
         for mora, phones in mora_data.items():
             node = self.mora_trie
             for char in mora:
@@ -108,7 +107,6 @@ class HiroUSTGenerator:
             node['phones'] = phones
 
     def romaji_to_hiragana(self, phoneme):
-        """✅ FIXED: Uses FULL dictionary - no more ignoring entries!"""
         if phoneme.startswith('kk') or phoneme.startswith('gg'):
             return self.hiragana_map.get(phoneme, phoneme)
         if phoneme in ['ji', 'zu']:
@@ -118,7 +116,6 @@ class HiroUSTGenerator:
         return self.hiragana_map.get(phoneme, phoneme)
 
     def hiragana_to_romaji(self, text):
-        """🚀 TRIE-BASED: O(n) instead of O(n × 100)"""
         phonemes = []
         i = 0
         text = text.strip()
@@ -154,7 +151,6 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
 
 
 def parse_song_structure(text, line_pause=960, section_pause=1920):
-    """✅ INDUSTRIAL-GRADE: Handles ALL malformed input gracefully"""
     parts = {"Main": []}  # Default fallback
     current_part = "Main"
     all_elements = []
@@ -167,7 +163,6 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
     for line_num, raw_line in enumerate(lines, 1):
         line = raw_line.strip()
 
-        # ✅ COMPLETE SECTION VALIDATION
         if line.startswith('[') and line.endswith(']') and len(line) > 2:
             section_name = line[1:-1].strip()
             if section_name:  # Valid non-empty section
@@ -177,7 +172,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
                 parts[current_part] = []  # Initialize new section
             else:
                 print(f"⚠️ Empty section '['']' on line {line_num} - using 'Main'")
-        # ✅ VALIDATE NON-EMPTY LINES ONLY
+
         elif line:
             try:
                 # Safe phoneme parsing with fallback
@@ -191,13 +186,10 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
                     print(f"⚠️ Empty phonemes from '{line}' on line {line_num}")
             except Exception as e:
                 print(f"⚠️ Parse error line {line_num}: '{line}' → {e}")
-                # Continue silently - don't crash!
 
-    # ✅ FINAL CLEANUP
     if all_elements and all_elements[-1].startswith("PAUSE_LINE"):
         all_elements.pop()
 
-    # ✅ MINIMUM SAFETY CHECK
     if not all_elements:
         all_elements = ["PAUSE_LINE:480"]  # At least one pause
 
@@ -244,7 +236,7 @@ class MotifMemory:
         return random.choice(melodic_notes)
 
     def debug_motifs(self):
-        """Show stored motifs for preview"""
+        """Stored motifs for preview"""
         if not self.stored_motifs:
             return "No motifs stored"
         return " | ".join([f"[{','.join(map(str, m))}]" for m in self.stored_motifs])
@@ -252,7 +244,6 @@ class MotifMemory:
 
 class MelodyBrain:
     def __init__(self):
-        # ✅ ALL STATE + CONSTANTS IN ONE INIT
         self.VOWEL_CHARS = 'あいうえお'
         self.CONSONANT_CHARS = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
         self.last_note = 0
@@ -330,12 +321,11 @@ class MelodyBrain:
 
 
 def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None):
-    """Now takes MelodyBrain instance - no global access needed"""
     if phoneme == '+':
         return int(base_length * 0.6 * length_factor)
 
     phoneme_char = phoneme[0] if len(phoneme) > 0 else 'a'
-    if brain:  # Use passed brain's constants
+    if brain:
         vowel_chars = brain.VOWEL_CHARS
         consonant_chars = brain.CONSONANT_CHARS
     else:  # Fallback for compatibility
@@ -397,13 +387,8 @@ Mode2=True
                 note_id += 1
 
         else:
-            # Process phoneme with stretching
             romaji_phoneme = element
-
-            # ✅ FIXED: Proper sokuon handling for UTAU
             if romaji_phoneme == 'っ':
-                # Small tsu = GEMINATION, not "tsu" sound!
-                # For UTAU: use REST + next phoneme will double naturally
                 note_length = 60  # Very short rest for gemination effect
                 ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=R\nNoteNum={int(root_key)}\n'
                 ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\n'
@@ -443,7 +428,7 @@ Mode2=True
 
 
 def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False, quarter_tone=False):
-    """Simple random note from scale (original algorithm)"""
+    """Simple random note from scale"""
     scale = SCALES[scale_name]
     if flat_mode:
         return root_midi + 0
@@ -460,9 +445,15 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🤖 Hiro UST Generator v4.0")
+        self.root.title("Hiro UST v4.1")
         self.root.geometry("900x800")
         self.root.minsize(850, 850)
+
+        try:
+            self.root.iconbitmap("hibiki.ico")
+            print("✅ Logo loaded: hibiki.ico")
+        except:
+            print("⚠️ hibiki.ico not found - using default")
 
         # =============== MAIN LYRICS (Top 40%) ===============
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
@@ -473,7 +464,7 @@ class USTGeneratorApp:
         self.lyrics_text.insert("1.0", """[Verse 1]
 きゃっきゃ うれし いたい さぶり
 ゆびさき きりさけ あかい つゆ
-
+                        
 [Chorus]
 いたみ いたみ きもちいい""")
 
@@ -562,16 +553,15 @@ class USTGeneratorApp:
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
 
-        # Panel 4: UST Params (NEW - replace Output panel position)
-        # Panel 4: UST + Output (COMBINED - Perfect 25% width)
+        # Panel 4: UST + Output (COMBINED)
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
         output_panel.pack(side="right", fill="both", expand=True)
 
-        # Compact UST controls (top row)
+        # Compact UST controls
         ust_frame = ttk.Frame(output_panel)
         ust_frame.pack(fill="x", pady=2)
 
-        # Pre + Ovl (ultra-compact)
+        # Pre + Ovl
         ttk.Label(ust_frame, text="P:").grid(row=0, column=0, sticky="w")
         self.pre_utter_var = tk.StringVar(value="25")
         ttk.Entry(ust_frame, textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
@@ -580,7 +570,7 @@ class USTGeneratorApp:
         self.voice_overlap_var = tk.StringVar(value="10")
         ttk.Entry(ust_frame, textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
 
-        # Int + Env (ultra-compact)
+        # Int + Env
         ttk.Label(ust_frame, text="I:").grid(row=0, column=4, sticky="w")
         self.intensity_base_var = tk.StringVar(value="80")
         ttk.Entry(ust_frame, textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
@@ -592,7 +582,7 @@ class USTGeneratorApp:
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
 
-        # Project + Buttons (below)
+        # Project + Buttons
         ttk.Label(output_panel, text="Proj:").pack(anchor="w")
         self.project_var = tk.StringVar(value="Hiro_Main")
         ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 6))
@@ -604,7 +594,7 @@ class USTGeneratorApp:
         ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(fill="x", pady=1)
         ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(fill="x", pady=1)
 
-        # Status + Preview (unchanged)
+        # Status + Preview
         status_frame = ttk.Frame(root)
         status_frame.pack(fill="x", padx=15, pady=(0, 10))
         self.status_var = tk.StringVar(value="✅ Ready - All controls visible!")
@@ -625,10 +615,9 @@ class USTGeneratorApp:
         return presets.get(preset_name, "0,10,35,0,100,100,0")
 
     def validate_inputs(self):
-        """🛡️ INDUSTRIAL-GRADE VALIDATION - Prevents ALL crashes"""
         errors = []
 
-        # NUMERIC FIELDS (Critical)
+        # NUMERIC FIELDS
         try:
             tempo = float(self.tempo_var.get())
             if not 60 <= tempo <= 240:
@@ -643,7 +632,6 @@ class USTGeneratorApp:
         except:
             errors.append("Base Length: Enter number")
 
-        # ALL OTHER NUMBERS (compact)
         for field, minv, maxv, name in [
             (self.line_pause_var, 240, 5000, "Line Pause"),
             (self.section_pause_var, 480, 10000, "Section Pause"),
@@ -666,16 +654,15 @@ class USTGeneratorApp:
         if self.scale_var.get() not in SCALES:
             errors.append("Scale: Select from dropdown")
 
-        # LYRICS (Essential)
+        # LYRICS
         lyrics = self.lyrics_text.get("1.0", tk.END).strip()
         if not lyrics or len(lyrics) < 10:
             errors.append("Lyrics: Add some text")
 
         return errors
 
-    def _generate_content(self):  # ← This stays exactly where it is
-        """🚀 VALIDATED GENERATION - Bulletproof!"""
-        # VALIDATE FIRST
+    def _generate_content(self):
+        # VALIDATE
         errors = self.validate_inputs()
         if errors:
             self.status_var.set(f"❌ Fix: {' | '.join(errors)}")
@@ -728,7 +715,6 @@ class USTGeneratorApp:
                 f.write(ust_content)
             self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
 
-            # Preview first 600 chars
             self.preview_text.config(state="normal")
             self.preview_text.delete("1.0", tk.END)
             self.preview_text.insert("1.0", f"✅ UST Ready:\n\n{ust_content[:600]}...")
@@ -737,7 +723,6 @@ class USTGeneratorApp:
             self.status_var.set(f"❌ Save failed: {str(e)}")
 
     def save_ust_only(self):
-        """Generate + Save-As dialog ONLY"""
         ust_content = self._generate_content()
         if not ust_content:
             return
@@ -765,7 +750,6 @@ class USTGeneratorApp:
                 self.status_var.set(f"❌ Save failed: {str(e)}")
 
     def preview_phonemes(self):
-        """SINGLE unified phoneme preview - NO DUPLICATES"""
         lyrics = self.lyrics_text.get("1.0", tk.END).strip()
         if not lyrics:
             self.status_var.set("❌ No lyrics to preview")
@@ -789,7 +773,6 @@ class USTGeneratorApp:
         self.status_var.set(f"✅ Previewed {len([e for e in elements if not e.startswith('PAUSE')])} phonemes")
 
     def clear(self):
-        """Unified clear method"""
         self.lyrics_text.delete("1.0", tk.END)
         default_lyrics = """[Verse 1]
         きゃっきゃ うれし いたい さぶり
