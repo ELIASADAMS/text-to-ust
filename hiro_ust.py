@@ -257,7 +257,7 @@ class MelodyBrain:
         self.CONSONANT_CHARS = CONSONANT_CHARS
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
-                       quarter_tone=False, use_motifs=True):
+                       quarter_tone=False, use_motifs=True, chord_mode=False):
         scale = SCALES[scale_name]
         self.phrase_len += 1
 
@@ -294,6 +294,42 @@ class MelodyBrain:
                     cons_notes = [0, 2, 4, 7]
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
                     target_note = random.choice(cons_notes)
+
+            # CHORD PROGRESSION AWARENESS (NEW)
+            if chord_mode:
+                beat_pos = (self.phrase_len - 1) % 8  # 0-7 cycle
+                if beat_pos in [0, 1, 2]:  # I chord (C)
+                    chord_root = 0
+                elif beat_pos in [3, 4]:  # IV chord (F)
+                    chord_root = 5
+                elif beat_pos in [5, 6, 7]:  # V chord (G)
+                    chord_root = 7
+                else:
+                    chord_root = None
+
+                if chord_root is not None:
+                    # Chord tones: root, 3rd, 5th (scale-safe)
+                    chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
+                    chord_tones = [n for n in chord_tones if n in scale]
+                    if chord_tones:
+                        target_note = random.choice(chord_tones) * 0.7 + target_note * 0.3  # Blend
+
+            # CHORD AWARENESS (NEW - after motif selection)
+        if chord_mode and self.phrase_len % 8 in [0, 1, 2]:  # I chord (C)
+            chord_root = 0
+        elif chord_mode and self.phrase_len % 8 in [3, 4]:  # IV chord (F)
+            chord_root = 5
+        elif chord_mode and self.phrase_len % 8 in [5, 6, 7]:  # V chord (G)
+            chord_root = 7
+        else:
+            chord_root = None
+
+        if chord_root is not None:
+            # Bias toward chord tones [root, 3rd, 5th]
+            chord_tones = [chord_root, (chord_root + 4) % 12, (chord_root + 7) % 12]
+            chord_tones = [n for n in chord_tones if n in scale]  # Scale-safe
+            if chord_tones:
+                target_note = random.choice(chord_tones)
 
         # Voice leading + snap to scale
         max_leap = settings["leap"]
@@ -348,7 +384,7 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, melody_brain,
                 pre_utterance=25, voice_overlap=10, intensity_base=80, envelope="0,10,35,0,100,100,0",
-                flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True):
+                flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False):
     generator = HiroUSTGenerator()
     project_name = str(project_name)
 
@@ -409,9 +445,10 @@ Mode2=True
                 if lyrical_mode:
                     note_num = melody_brain.get_smart_note(
                         root_key, scale, stretch_phoneme, intone_level,
-                        flat_mode, quartertone_mode, use_motifs)
+                        flat_mode, quartertone_mode, use_motifs, chord_mode=True)
                 else:
-                    note_num = get_random_note(root_key, scale, intone_level, flat_mode, quartertone_mode)
+                    note_num = get_random_note(root_key, scale, intone_level, flat_mode, quartertone_mode, use_motifs,
+                                               chord_mode=True)
 
                 ust += f'\n[#{note_id:04d}]\n'
                 ust += f'Length={note_length}\n'
@@ -549,6 +586,9 @@ class USTGeneratorApp:
 
         self.quartertone_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)", variable=self.quartertone_var).pack(anchor="w", pady=2)
+
+        self.chord_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(melody_panel, text="🎸 I-IV-V Chords", variable=self.chord_var).pack(anchor="w", pady=2)
 
         ttk.Label(melody_panel, text="Intone:").pack(anchor="w", pady=(8, 0))
         self.intone_var = ttk.Combobox(melody_panel, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
@@ -695,7 +735,8 @@ class USTGeneratorApp:
                 int(self.intensity_base_var.get()),
                 self._get_envelope_preset(self.envelope_var.get()),
                 self.flat_var.get(), self.quartertone_var.get(),
-                self.lyrical_mode_var.get(), self.motif_var.get()
+                self.lyrical_mode_var.get(), self.motif_var.get(),
+                self.chord_var.get()
             )
             return ust_content
         except Exception as e:
