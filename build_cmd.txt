@@ -1,1 +1,1 @@
-pyinstaller --onefile --windowed --name "Hiro UST v4.1" --icon=hibiki.ico hiro_ust.py
+pyinstaller --onefile --windowed --name "Hiro UST v4.1" --add-data "hibiki.ico;." --icon=hibiki.ico hiro_ust.py
