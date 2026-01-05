@@ -184,7 +184,9 @@ class MotifMemory:
 
 
 class MelodyBrain:
-    def __init__(self):
+    def __init__(self, seed=None):
+        self.seed = seed or 1234
+        random.seed(self.seed)
         self.last_note = 0
         self.phrases = []
         self.phrase_len = 0
@@ -385,7 +387,9 @@ Mode2=True
                 ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
                 phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
                 last_note_safe = getattr(melody_brain, 'last_note', 0)
-                intensity = melody_brain.get_intensity(last_note_safe, phrase_progress)
+                base_intensity = intensity_base
+                melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
+                intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
                 ust += f'Intensity={max(50, min(120, intensity))}\n'
                 ust += f'StartPoint=0\nEnvelope={envelope}\n'
                 note_id += 1
@@ -555,6 +559,11 @@ class USTGeneratorApp:
         self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
+
+        # SEED CONTROL (add after envelope combo)
+        ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
+        self.seed_var = tk.StringVar(value="1234")
+        ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
 
         # Project + Buttons
         ttk.Label(output_panel, text="Proj:").pack(anchor="w")
