@@ -1,5 +1,5 @@
 
-# 響 Hiro UST v4.1 🎵
+# 響 Hiro UST
 
 **Procedural UTAU `.ust` generator** for Japanese lyrics with mora-accurate parsing, motif memory, voice leading, and musical scales.
 Built by Ilya Minin (Eli) - interactive installations & generative audio specialist.
