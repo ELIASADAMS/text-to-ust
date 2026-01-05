@@ -13,9 +13,14 @@ from scales import SCALES
 
 
 class HiroUSTGenerator:
-    def __init__(self):
-        self.hiragana_map = HIRAGANA_MAP
-        self._build_mora_trie()
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.hiragana_map = HIRAGANA_MAP
+            cls._instance._build_mora_trie()
+        return cls._instance
 
     def _build_mora_trie(self):
         self.mora_trie = {}
@@ -62,13 +67,16 @@ class HiroUSTGenerator:
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
 
+    # DOUBLE VOWELS (e.g., "aa", "ii")
     if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
-        return [(phoneme[0], 1.8)]
+        return [(phoneme[0], 1.8)]  # Long vowel
 
-    vowel_boost = 0.5 if phoneme in vowel_chars else 0
-    if random.random() < (stretch_prob + vowel_boost) and len(phoneme) == 1 and phoneme in vowel_chars:
+    # SINGLE VOWEL STRETCH
+    if (len(phoneme) == 1 and phoneme in vowel_chars and
+            random.random() < (stretch_prob + 0.5)):
         stretches = random.randint(1, max_stretch)
         return [(phoneme, 1.2)] + [('+', 0.6)] * stretches
+
     return [(phoneme, 1.0)]
 
 
@@ -104,9 +112,12 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
                     all_elements.extend(phonemes)
                     all_elements.append(f"PAUSE_LINE:{line_pause}")
                 else:
-                    print(f"⚠️ Empty phonemes from '{line}' on line {line_num}")
+                    # SKIP BAD LINES, don't crash
+                    self.status_var.set(f"⚠️ Skipped invalid line {line_num}: '{line[:20]}...'")
             except Exception as e:
+                # LOG but continue
                 print(f"⚠️ Parse error line {line_num}: '{line}' → {e}")
+                continue  # Skip this line entirely
 
     if all_elements and all_elements[-1].startswith("PAUSE_LINE"):
         all_elements.pop()
@@ -172,6 +183,18 @@ class MelodyBrain:
         self.motif_memory = MotifMemory(motif_length=4)
         self.VOWEL_CHARS = VOWEL_CHARS
         self.CONSONANT_CHARS = CONSONANT_CHARS
+
+        def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False,
+                            quarter_tone=False, use_motifs=True, chord_mode=False):
+            """Fallback random note generator when lyrical_mode=False"""
+            scale = SCALES[scale_name]
+            if flat_mode:
+                return root_midi + 0
+
+            base_semitone = random.choice(scale)
+            if quarter_tone and random.random() < 0.5:
+                base_semitone += random.choice([0, 0.5, -0.5])
+            return root_midi + base_semitone
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
                        quarter_tone=False, use_motifs=True, chord_mode=False):
@@ -304,15 +327,28 @@ Mode2=True
 
     note_id = 0
     for element in text_elements:
-        if element.startswith("PAUSE_LINE:"):
+        if element.startswith("PAUSE"):
+            # RESET PHRASE STATE ON PAUSES
+            melody_brain.phrase_len = 0
+            melody_brain.recent_notes.clear()
+
             pause_length = int(element.split(":")[1])
-            num_rests = pause_length // 240
-            for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\n'
-                ust += f'Length=240\nLyric=R\nNoteNum=60\nPreUtterance=0\n'
-                ust += f'VoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
+            if "LINE" in element:
+                num_rests = pause_length // 240
+                for _ in range(num_rests):
+                    ust += f'\n[#{note_id:04d}]\nLength=240\nLyric=R\nNoteNum=60\n'
+                    ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
+                    ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
+                    note_id += 1
+            else:  # SECTION pause
+                num_rests = pause_length // 480
+                for _ in range(num_rests):
+                    ust += f'\n[#{note_id:04d}]\nLength=480\nLyric=R\nNoteNum=60\n'
+                    ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
+                    ust += f'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
+                    note_id += 1
+            continue  # Skip to next element
+
         elif element.startswith("PAUSE_SECTION:"):
             pause_length = int(element.split(":")[1])
             num_rests = pause_length // 480
@@ -354,6 +390,13 @@ Mode2=True
                 ust += f'Length={note_length}\n'
                 ust += f'Lyric={stretch_phoneme}\n'
                 note_num_safe = int(round(note_num))
+                # QUARTER-TONE: Use PBS/PBW for microtiming
+                if quartertone_mode and note_num != int(note_num):  # Has fractional part
+                    fraction = note_num - int(note_num)
+                    pbs = int(fraction * 50)  # Convert 0.5 → ±25 cents
+                    ust += f'PBS={pbs}\nPBW=10\n'  # 10-tick pitch bend width
+                else:
+                    ust += f'PBS=0\nPBW=0\n'
                 ust += f'NoteNum={note_num_safe}\n'
                 ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
                 phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
