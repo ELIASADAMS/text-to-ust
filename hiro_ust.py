@@ -4,6 +4,10 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
+# GLOBAL CONSTANTS
+VOWEL_CHARS = 'あいうえお'
+CONSONANT_CHARS = 'かきくけこがぎぐげござじずぜぞたちつてとだぢづでどなにぬねのはひふへほまみむめもやゆよらりるれろわをん'
+
 SCALES = {
     # 12-note (Chromatic)
     'Chromatic': list(range(12)),
@@ -138,7 +142,7 @@ class HiroUSTGenerator:
 
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
-    vowel_chars = brain.VOWEL_CHARS if brain else 'あいうえお'
+    vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
 
     if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
         return [(phoneme[0], 1.8)]
@@ -244,13 +248,13 @@ class MotifMemory:
 
 class MelodyBrain:
     def __init__(self):
-        self.VOWEL_CHARS = 'あいうえお'
-        self.CONSONANT_CHARS = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
         self.last_note = 0
         self.phrases = []
         self.phrase_len = 0
         self.recent_notes = []
         self.motif_memory = MotifMemory(motif_length=4)
+        self.VOWEL_CHARS = VOWEL_CHARS
+        self.CONSONANT_CHARS = CONSONANT_CHARS
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)", flat_mode=False,
                        quarter_tone=False, use_motifs=True):
@@ -302,7 +306,7 @@ class MelodyBrain:
             self.last_note += random.choice([0, 0.5, -0.5])
 
         if flat_mode:
-            return root_midi + 0
+            self.last_note = 0
         return root_midi + self.last_note
 
     def _get_intone_settings(self, intone_level):
@@ -326,11 +330,11 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
 
     phoneme_char = phoneme[0] if len(phoneme) > 0 else 'a'
     if brain:
-        vowel_chars = brain.VOWEL_CHARS
-        consonant_chars = brain.CONSONANT_CHARS
-    else:  # Fallback for compatibility
-        vowel_chars = 'あいうえお'
-        consonant_chars = 'かきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ'
+        vowel_chars = getattr(brain, 'VOWEL_CHARS', VOWEL_CHARS)
+        consonant_chars = getattr(brain, 'CONSONANT_CHARS', CONSONANT_CHARS)
+    else:
+        vowel_chars = VOWEL_CHARS
+        consonant_chars = CONSONANT_CHARS
 
     if phoneme_char in vowel_chars:
         factor = 1.0 + random.uniform(-length_var, length_var * 0.3)
@@ -412,12 +416,12 @@ Mode2=True
                 ust += f'\n[#{note_id:04d}]\n'
                 ust += f'Length={note_length}\n'
                 ust += f'Lyric={stretch_phoneme}\n'
-                ust += f'NoteNum={int(note_num)}\n'
+                note_num_safe = int(round(note_num))
+                ust += f'NoteNum={note_num_safe}\n'
                 ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
-                phrase_progress = melody_brain.phrase_len / 12.0
-                intensity = intensity_base + int(abs(melody_brain.last_note - 5) * 8)
-                if phrase_progress > 0.8:
-                    intensity += 15
+                phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
+                last_note_safe = getattr(melody_brain, 'last_note', 0)
+                intensity = melody_brain.get_intensity(last_note_safe, phrase_progress)
                 ust += f'Intensity={max(50, min(120, intensity))}\n'
 
                 ust += f'StartPoint=0\nEnvelope={envelope}\n'
@@ -428,13 +432,12 @@ Mode2=True
 
 
 def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False, quarter_tone=False):
-    """Simple random note from scale"""
+    """Safe random note - works with/without brain"""
     scale = SCALES[scale_name]
     if flat_mode:
         return root_midi + 0
 
     base_semitone = random.choice(scale)
-
     if quarter_tone and random.random() < 0.5:
         base_semitone += random.choice([0, 0.5, -0.5])
 
