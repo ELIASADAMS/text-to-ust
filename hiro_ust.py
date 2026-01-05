@@ -444,7 +444,7 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
     return root_midi + base_semitone
 
 
-# [GUI]
+# GUI
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
@@ -458,7 +458,7 @@ class USTGeneratorApp:
         except:
             print("⚠️ hibiki.ico not found - using default")
 
-        # =============== MAIN LYRICS (Top 40%) ===============
+        # =============== MAIN LYRICS ===============
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
         input_frame.pack(fill="both", expand=True, padx=15, pady=(15, 10))
 
@@ -471,7 +471,7 @@ class USTGeneratorApp:
 [Chorus]
 いたみ いたみ きもちいい""")
 
-        # =============== CONTROLS GRID (4 Perfect Panels) ===============
+        # =============== CONTROLS GRID ===============
         controls_main = ttk.Frame(root)
         controls_main.pack(fill="x", padx=15, pady=(0, 10))
 
@@ -838,7 +838,7 @@ class USTGeneratorApp:
             with open(filename, 'r', encoding='utf-8') as f:
                 preset = json.load(f)
 
-            # Safely set ALL controls
+            # Set ALL controls
             var_map = {
                 'tempo': self.tempo_var,
                 'length': self.length_var,
@@ -860,7 +860,7 @@ class USTGeneratorApp:
                 if key in preset:
                     var.set(str(preset[key]))
 
-            # Boolean checkboxes (if preset includes them later)
+            # Boolean checkboxes
             for checkbox, key in [
                 (self.motif_var, 'motif'),
                 (self.lyrical_mode_var, 'lyrical'),
@@ -874,6 +874,7 @@ class USTGeneratorApp:
 
         except Exception as e:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
