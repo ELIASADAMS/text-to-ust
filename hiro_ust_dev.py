@@ -4,104 +4,22 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
-# GLOBAL CONSTANTS
-VOWEL_CHARS = 'あいうえお'
-CONSONANT_CHARS = 'かきくけこがぎぐげござじずぜぞたちつてとだぢづでどなにぬねのはひふへほまみむめもやゆよらりるれろわをん'
-
-SCALES = {
-    # 12-note (Chromatic)
-    'Chromatic': list(range(12)),
-
-    # 9-note (Nonatonic Blues)
-    'Nonatonic Blues': [0, 2, 3, 5, 6, 7, 8, 10, 11],
-
-    # 8-note (Octatonic)
-    'Octatonic': [0, 1, 3, 4, 6, 7, 9, 10],
-
-    # 7-note (Diatonic)
-    'C Major': [0, 2, 4, 5, 7, 9, 11], 'C Minor': [0, 2, 3, 5, 7, 8, 10],
-    'D Major': [2, 4, 6, 7, 9, 11, 1], 'D Minor': [2, 4, 5, 7, 9, 10, 0],
-    'E Major': [4, 6, 8, 9, 11, 1, 3], 'E Minor': [4, 6, 7, 9, 11, 0, 2],
-    'F Major': [5, 7, 9, 10, 0, 2, 4], 'F Minor': [5, 7, 8, 10, 0, 1, 3],
-    'G Major': [7, 9, 11, 0, 2, 4, 6], 'G Minor': [7, 9, 10, 0, 2, 3, 5],
-    'A Major': [9, 11, 1, 2, 4, 6, 8], 'A Minor': [9, 11, 0, 2, 4, 5, 7],
-
-    # 6-note (Hexatonic)
-    'Whole Tone': [0, 2, 4, 6, 8, 10],
-    'Hexatonic Blues': [0, 3, 5, 6, 9, 10],
-
-    # 5-note (Pentatonic)
-    'Major Pentatonic': [0, 2, 4, 7, 9],
-    'Minor Pentatonic': [0, 3, 5, 7, 10],
-
-    # 4-note (Tetratonic)
-    'Tetratonic': [0, 4, 7, 11]
-}
-
-KEY_ROOTS = {
-    "Soprano": 67,  # G4
-    "Alto": 60,  # C4
-    "Tenor": 55,  # G3
-    "Baritone": 52,  # E3
-    "Bass": 48,  # C3
-    "C4 Default": 60
-}
+# IMPORT DATA MODULES
+from constants import VOWEL_CHARS, CONSONANT_CHARS
+from hiragana_map import HIRAGANA_MAP
+from key_roots import KEY_ROOTS
+from mora_trie_data import MORA_DATA
+from scales import SCALES
 
 
 class HiroUSTGenerator:
     def __init__(self):
-        self.hiragana_map = {
-            # Vowels
-            'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お',
-            'ka': 'か', 'ki': 'き', 'ku': 'く', 'ke': 'け', 'ko': 'こ',
-            'ga': 'が', 'gi': 'ぎ', 'gu': 'ぐ', 'ge': 'げ', 'go': 'ご',
-            'kya': 'きゃ', 'kyu': 'きゅ', 'kyo': 'きょ', 'gya': 'ぎゃ', 'gyu': 'ぎゅ', 'gyo': 'ぎょ',
-            'sa': 'さ', 'shi': 'し', 'su': 'す', 'se': 'せ', 'so': 'そ',
-            'za': 'ざ', 'ji_s': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',
-            'sha': 'しゃ', 'shu': 'しゅ', 'sho': 'しょ', 'ja': 'じゃ', 'ju': 'じゅ', 'jo': 'じょ',
-            'ta': 'た', 'chi': 'ち', 'tsu': 'つ', 'te': 'て', 'to': 'と',
-            'da': 'だ', 'ji_t': 'ぢ', 'zu_t': 'づ', 'de': 'で', 'do': 'ど',
-            'cha': 'ちゃ', 'chu': 'ちゅ', 'cho': 'ちょ',
-            'na': 'な', 'ni': 'に', 'nu': 'ぬ', 'ne': 'ね', 'no': 'の',
-            'nya': 'にゃ', 'nyu': 'にゅ', 'nyo': 'にょ',
-            'ha': 'は', 'hi': 'ひ', 'fu': 'ふ', 'he': 'へ', 'ho': 'ほ',
-            'ba': 'ば', 'bi': 'び', 'bu': 'ぶ', 'be': 'べ', 'bo': 'ぼ',
-            'pa': 'ぱ', 'pi': 'ぴ', 'pu': 'ぷ', 'pe': 'ぺ', 'po': 'ぽ',
-            'hya': 'ひゃ', 'hyu': 'ひゅ', 'hyo': 'ひょ', 'bya': 'びゃ', 'byu': 'びゅ', 'byo': 'びょ',
-            'ma': 'ま', 'mi': 'み', 'mu': 'む', 'me': 'め', 'mo': 'も',
-            'mya': 'みゃ', 'myu': 'みゅ', 'myo': 'みょ',
-            'ya': 'や', 'yu': 'ゆ', 'yo': 'よ',
-            'ra': 'ら', 'ri': 'り', 'ru': 'る', 're': 'れ', 'ro': 'ろ',
-            'rya': 'りゃ', 'ryu': 'りゅ', 'ryo': 'りょ', 'wa': 'わ', 'wo': 'を', 'n': 'ん'
-        }
+        self.hiragana_map = HIRAGANA_MAP
+        self._build_mora_trie()
 
+    def _build_mora_trie(self):
         self.mora_trie = {}
-        mora_data = {
-            'っ': ['っ'], 'っか': ['っ', 'ka'], 'っき': ['っ', 'ki'], 'っく': ['っ', 'ku'],
-            'っけ': ['っ', 'ke'], 'っこ': ['っ', 'ko'], 'っが': ['っ', 'ga'], 'っぎ': ['っ', 'gi'],
-            'っぐ': ['っ', 'gu'], 'っつ': ['っ', 'tsu'], 'った': ['っ', 'ta'], 'っち': ['っ', 'chi'],
-            'っせ': ['っ', 'se'], 'っそ': ['っ', 'so'], 'あ': ['a'], 'い': ['i'], 'う': ['u'],
-            'え': ['e'], 'お': ['o'], 'か': ['ka'], 'き': ['ki'], 'く': ['ku'], 'け': ['ke'],
-            'こ': ['ko'], 'が': ['ga'], 'ぎ': ['gi'], 'ぐ': ['gu'], 'げ': ['ge'], 'ご': ['go'],
-            'きゃ': ['kya'], 'きゅ': ['kyu'], 'きょ': ['kyo'], 'ぎゃ': ['gya'], 'ぎゅ': ['gyu'],
-            'ぎょ': ['gyo'], 'さ': ['sa'], 'し': ['shi'], 'す': ['su'], 'せ': ['se'], 'そ': ['so'],
-            'ざ': ['za'], 'じ': ['ji_s'], 'ず': ['zu'], 'ぜ': ['ze'], 'ぞ': ['zo'], 'しゃ': ['sha'],
-            'しゅ': ['shu'], 'しょ': ['sho'], 'じゃ': ['ja'], 'じゅ': ['ju'], 'じょ': ['jo'],
-            'た': ['ta'], 'ち': ['chi'], 'つ': ['tsu'], 'て': ['te'], 'と': ['to'], 'だ': ['da'],
-            'ぢ': ['ji_t'], 'づ': ['zu_t'], 'で': ['de'], 'ど': ['do'], 'ちゃ': ['cha'],
-            'ちゅ': ['chu'], 'ちょ': ['cho'], 'な': ['na'], 'に': ['ni'], 'ぬ': ['nu'],
-            'ね': ['ne'], 'の': ['no'], 'にゃ': ['nya'], 'にゅ': ['nyu'], 'にょ': ['nyo'],
-            'は': ['ha'], 'ひ': ['hi'], 'ふ': ['fu'], 'へ': ['he'], 'ほ': ['ho'], 'ば': ['ba'],
-            'び': ['bi'], 'ぶ': ['bu'], 'べ': ['be'], 'ぼ': ['bo'], 'ぱ': ['pa'], 'ぴ': ['pi'],
-            'ぷ': ['pu'], 'ぺ': ['pe'], 'ぽ': ['po'], 'ひゃ': ['hya'], 'ひゅ': ['hyu'],
-            'ひょ': ['hyo'], 'びゃ': ['bya'], 'びゅ': ['byu'], 'びょ': ['byo'], 'ま': ['ma'],
-            'み': ['mi'], 'む': ['mu'], 'め': ['me'], 'も': ['mo'], 'みゃ': ['mya'], 'みゅ': ['myu'],
-            'みょ': ['myo'], 'や': ['ya'], 'ゆ': ['yu'], 'よ': ['yo'], 'ら': ['ra'], 'り': ['ri'],
-            'る': ['ru'], 'れ': ['re'], 'ろ': ['ro'], 'りゃ': ['rya'], 'りゅ': ['ryu'], 'りょ': ['ryo'],
-            'わ': ['wa'], 'を': ['wo'], 'ん': ['n']
-        }
-
-        for mora, phones in mora_data.items():
+        for mora, phones in MORA_DATA.items():
             node = self.mora_trie
             for char in mora:
                 if char not in node:
@@ -169,7 +87,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
         if line.startswith('[') and line.endswith(']') and len(line) > 2:
             section_name = line[1:-1].strip()
-            if section_name:  # Valid non-empty section
+            if section_name:
                 if all_elements:  # Add pause before new section
                     all_elements.append(f"PAUSE_SECTION:{section_pause}")
                 current_part = section_name
@@ -179,10 +97,9 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
         elif line:
             try:
-                # Safe phoneme parsing with fallback
                 generator = HiroUSTGenerator()
                 phonemes = generator.hiragana_to_romaji(line)
-                if phonemes:  # Only add if parsing succeeded
+                if phonemes:
                     parts[current_part].append(line)
                     all_elements.extend(phonemes)
                     all_elements.append(f"PAUSE_LINE:{line_pause}")
@@ -195,7 +112,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
         all_elements.pop()
 
     if not all_elements:
-        all_elements = ["PAUSE_LINE:480"]  # At least one pause
+        all_elements = ["PAUSE_LINE:480"]
 
     return parts, all_elements
 
@@ -223,7 +140,7 @@ class MotifMemory:
 
             # REUSE MOTIF WITH VARIATION
             motif = self.stored_motifs[-1]
-            next_in_motif = motif[1:]  # Shift motif forward
+            next_in_motif = motif[1:]
 
             if random.random() < 0.5:
                 varied_note = next_in_motif[0] + random.choice([-1, 0, 1])
@@ -235,7 +152,7 @@ class MotifMemory:
             closest_scale = min(scale, key=lambda x: abs(x - target_note))
             return closest_scale
 
-        # No motif: regular melodic note
+        # No motif: regular
         melodic_notes = [0, 2, 4, 5, 7, 9]
         return random.choice(melodic_notes)
 
@@ -308,11 +225,11 @@ class MelodyBrain:
                     chord_root = None
 
                 if chord_root is not None:
-                    # Chord tones: root, 3rd, 5th (scale-safe)
+                    # Chord tones: root, 3rd, 5th
                     chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
                     chord_tones = [n for n in chord_tones if n in scale]
                     if chord_tones:
-                        target_note = random.choice(chord_tones) * 0.7 + target_note * 0.3  # Blend
+                        target_note = random.choice(chord_tones) * 0.7 + target_note * 0.3
 
         # Voice leading + snap to scale
         max_leap = settings["leap"]
@@ -412,7 +329,7 @@ Mode2=True
         else:
             romaji_phoneme = element
             if romaji_phoneme == 'っ':
-                note_length = 60  # Very short rest for gemination effect
+                note_length = 60  # Very short rest for gemination
                 ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=R\nNoteNum={int(root_key)}\n'
                 ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\n'
                 ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
@@ -473,10 +390,9 @@ class USTGeneratorApp:
 
         try:
             if getattr(sys, 'frozen', False):
-                # PyInstaller EXE: Use bundled temp folder
+                # PyInstaller EXE
                 icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
             else:
-                # Development: Use local file
                 icon_path = 'hibiki.ico'
 
             self.root.iconbitmap(icon_path)
@@ -738,7 +654,7 @@ class USTGeneratorApp:
         if not ust_content:
             return
 
-        # ✅ Save NEXT TO EXE (not temp folder)
+        # Save NEXT TO EXE
         if getattr(sys, 'frozen', False):
             save_dir = os.path.dirname(sys.executable)  # EXE folder
         else:
