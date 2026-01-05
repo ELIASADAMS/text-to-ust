@@ -1,0 +1,45 @@
+{
+  "presets": {
+    "1": {
+      "name": "Mellow",
+      "intone_level": "Tight (1)",
+      "length_var": 0.2,
+      "stretch_prob": 0.4,
+      "intensity_base": 70,
+      "pre_utterance": 35,
+      "voice_overlap": 15,
+      "envelope": "Breathy",
+      "chord_mode": true,
+      "motif_prob": 0.6,
+      "description": "Smooth, breathy vocals with long vowels"
+    },
+    "2": {
+      "name": "Rap",
+      "intone_level": "Wild (5)",
+      "length_var": 0.1,
+      "stretch_prob": 0.05,
+      "intensity_base": 110,
+      "pre_utterance": 10,
+      "voice_overlap": 5,
+      "envelope": "Sharp",
+      "chord_mode": false,
+      "motif_prob": 0.2,
+      "consonant_boost": 1.5,
+      "description": "Fast, percussive delivery"
+    },
+    "3": {
+      "name": "Epic",
+      "intone_level": "Wide (3)",
+      "length_var": 0.4,
+      "stretch_prob": 0.3,
+      "intensity_base": 95,
+      "pre_utterance": 20,
+      "voice_overlap": 10,
+      "envelope": "Rock",
+      "chord_mode": true,
+      "motif_prob": 0.5,
+      "description": "Dramatic, wide range"
+    }
+  },
+  "default_preset": 1
+}

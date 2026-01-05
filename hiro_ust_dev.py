@@ -3,6 +3,7 @@ import random
 import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
+import json
 
 # GLOBAL CONSTANTS
 VOWEL_CHARS = 'あいうえお'
@@ -47,6 +48,40 @@ KEY_ROOTS = {
     "C4 Default": 60
 }
 
+class PartPresetManager:
+    def __init__(self, config_path="parts_presets.json"):
+        self.config_path = config_path
+        self.presets = {}
+        self.default_id = 1
+        self.load_presets()
+
+    def load_presets(self):
+        """Load from JSON, fallback to defaults if missing"""
+        try:
+            if getattr(sys, 'frozen', False):
+                base_dir = os.path.dirname(sys.executable)
+            else:
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+
+            full_path = os.path.join(base_dir, self.config_path)
+
+            if os.path.exists(full_path):
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.presets = data.get('presets', {})
+                    self.default_id = data.get('default_preset', 1)
+                print(f"✅ Loaded {len(self.presets)} presets from {self.config_path}")
+            else:
+                print(f"⚠️ {self.config_path} not found, using defaults")
+                self._init_defaults()
+        except Exception as e:
+            print(f"⚠️ Preset load error: {e}, using defaults")
+            self._init_defaults()
+
+    def _init_defaults(self):
+        """Fallback hardcoded presets"""
+        self.presets = {
+            "1": {"name": "Mellow", "intone_level": "Tight (1)", "length_var": 0.2, ...},
 
 class HiroUSTGenerator:
     def __init__(self):
@@ -169,8 +204,8 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
 
         if line.startswith('[') and line.endswith(']') and len(line) > 2:
             section_name = line[1:-1].strip()
-            if section_name:  # Valid non-empty section
-                if all_elements:  # Add pause before new section
+            if section_name:
+                if all_elements:
                     all_elements.append(f"PAUSE_SECTION:{section_pause}")
                 current_part = section_name
                 parts[current_part] = []  # Initialize new section
@@ -182,7 +217,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920):
                 # Safe phoneme parsing with fallback
                 generator = HiroUSTGenerator()
                 phonemes = generator.hiragana_to_romaji(line)
-                if phonemes:  # Only add if parsing succeeded
+                if phonemes:
                     parts[current_part].append(line)
                     all_elements.extend(phonemes)
                     all_elements.append(f"PAUSE_LINE:{line_pause}")
