@@ -597,6 +597,9 @@ class USTGeneratorApp:
         ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(fill="x", pady=1)
         ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(fill="x", pady=1)
 
+        ttk.Button(btn_frame, text="💾 Preset", command=self.save_preset).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📂 Load", command=self.load_preset).pack(fill="x", pady=1)
+
         # Status + Preview
         status_frame = ttk.Frame(root)
         status_frame.pack(fill="x", padx=15, pady=(0, 10))
@@ -790,6 +793,87 @@ class USTGeneratorApp:
         self.preview_text.config(state="disabled")
         self.status_var.set("✅ Cleared & Ready!")
 
+    def save_preset(self):
+        preset = {
+            'tempo': self.tempo_var.get(),
+            'length': self.length_var.get(),
+            'voice': self.voice_var.get(),
+            'scale': self.scale_var.get(),
+            'intone': self.intone_var.get(),
+            'length_var': self.length_var_ctrl.get(),
+            'stretch': self.stretch_var.get(),
+            'pre_utterance': self.pre_utter_var.get(),
+            'voice_overlap': self.voice_overlap_var.get(),
+            'intensity': self.intensity_base_var.get(),
+            'motif': self.motif_var.get(),
+            'lyrical': self.lyrical_mode_var.get(),
+            'flat': self.flat_var.get(),
+            'quartertone': self.quartertone_var.get(),
+            'project': self.project_var.get(),
+            'line_pause': self.line_pause_var.get(),
+            'section_pause': self.section_pause_var.get(),
+            'envelope': self.envelope_var.get()
+        }
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON Preset", "*.json")],
+            initialfile=f"{self.project_var.get()}_preset.json"
+        )
+        if filename:
+            import json
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(preset, f, indent=2, ensure_ascii=False)
+            self.status_var.set(f"✅ Preset saved: {os.path.basename(filename)}")
+
+    def load_preset(self):
+        filename = filedialog.askopenfilename(
+            filetypes=[("JSON Preset", "*.json"), ("All files", "*.*")],
+            title="Load Preset"
+        )
+        if not filename:
+            return
+
+        try:
+            import json
+            with open(filename, 'r', encoding='utf-8') as f:
+                preset = json.load(f)
+
+            # Safely set ALL controls
+            var_map = {
+                'tempo': self.tempo_var,
+                'length': self.length_var,
+                'voice': self.voice_var,
+                'scale': self.scale_var,
+                'intone': self.intone_var,
+                'length_var': self.length_var_ctrl,
+                'stretch': self.stretch_var,
+                'pre_utterance': self.pre_utter_var,
+                'voice_overlap': self.voice_overlap_var,
+                'intensity': self.intensity_base_var,
+                'project': self.project_var,
+                'line_pause': self.line_pause_var,
+                'section_pause': self.section_pause_var,
+                'envelope': self.envelope_var
+            }
+
+            for key, var in var_map.items():
+                if key in preset:
+                    var.set(str(preset[key]))
+
+            # Boolean checkboxes (if preset includes them later)
+            for checkbox, key in [
+                (self.motif_var, 'motif'),
+                (self.lyrical_mode_var, 'lyrical'),
+                (self.flat_var, 'flat'),
+                (self.quartertone_var, 'quartertone')
+            ]:
+                if key in preset:
+                    checkbox.set(bool(preset[key]))
+
+            self.status_var.set(f"✅ Loaded: {os.path.basename(filename)}")
+
+        except Exception as e:
+            self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
 
 if __name__ == "__main__":
     root = tk.Tk()
