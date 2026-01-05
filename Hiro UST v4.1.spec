@@ -5,7 +5,7 @@ a = Analysis(
     ['hiro_ust.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('hibiki.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
