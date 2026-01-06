@@ -7,3 +7,6 @@
 *.pyc
 hiro_tester.log
 *.log
+/archive
+/build_opt
+/archive
