@@ -11,6 +11,7 @@ from hiragana_map import HIRAGANA_MAP
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
+from kana_to_hiragana import convert_lyrics
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,8 @@ class HiroUSTGenerator:
         i = 0
         text = text.strip()
 
+        text = convert_lyrics(text)
+
         while i < len(text):
             node = self.mora_trie
             start = i
@@ -74,12 +77,9 @@ class HiroUSTGenerator:
                     phonemes.append('っ')
                     i = start + 1
                 else:
-                    # Unknown character - skip or log warning
-                    logger.warning(f"Unknown char '{char}' at position {start}")
                     i = start + 1
 
         return phonemes
-
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
@@ -130,6 +130,7 @@ def parse_song_structure(
         elif line:
             try:
                 generator = HiroUSTGenerator()
+                clean_line = line.replace(' ', '')
                 phonemes = generator.hiragana_to_romaji(line)
                 if phonemes:
                     parts[current_part].append(line)
