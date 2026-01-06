@@ -11,7 +11,8 @@ from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
-
+from config import HiroConfig
+from envelopes import ENVELOPE_PRESETS
 
 #   FIRST CLASS
 class HiroUSTGenerator:
@@ -148,7 +149,7 @@ def parse_song_structure(
         all_elements.pop()
 
     if not all_elements:
-        all_elements = ["PAUSE_LINE:480"]
+        all_elements = [f"PAUSE_LINE:{HiroConfig.PAUSE_LINE_UNIT * 2}"]
 
     return parts, all_elements
 
@@ -292,8 +293,12 @@ class MelodyBrain:
 
 
 def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None):
+    # Special case: '+' stretch continuation
     if phoneme == '+':
-        return int(base_length * 0.6 * length_factor)
+        factor = 0.6  # your previous logic: base_length * 0.6
+        length = int(base_length * factor * length_factor)
+        return max(HiroConfig.MIN_NOTE_LEN,
+                   min(HiroConfig.MAX_NOTE_LEN, length))
 
     phoneme_char = phoneme[0] if len(phoneme) > 0 else 'a'
     if brain:
@@ -309,8 +314,10 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
         factor = 0.5 + random.uniform(0, length_var * 1.5)
     else:
         factor = 0.7 + random.uniform(-length_var * 0.2, length_var * 0.2)
-    return max(120, int(base_length * factor * length_factor))
 
+    length = int(base_length * factor * length_factor)
+    return max(HiroConfig.MIN_NOTE_LEN,
+               min(HiroConfig.MAX_NOTE_LEN, length))
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, melody_brain,
@@ -340,9 +347,9 @@ Mode2=True
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
             pause_length = int(element.split(":")[1])
-            num_rests = pause_length // 240
+            num_rests = pause_length // HiroConfig.PAUSE_LINE_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength=240\nLyric=R\nNoteNum=60\n'
+                ust += f'\n[#{note_id:04d}]\nLength={HiroConfig.PAUSE_LINE_UNIT}\nLyric=R\nNoteNum=60\n'
                 ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
                 ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
@@ -352,9 +359,9 @@ Mode2=True
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
             pause_length = int(element.split(":")[1])
-            num_rests = pause_length // 480
+            num_rests = pause_length // HiroConfig.PAUSE_SECTION_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength=480\nLyric=R\nNoteNum=60\n'
+                ust += f'\n[#{note_id:04d}]\nLength={HiroConfig.PAUSE_SECTION_UNIT}\nLyric=R\nNoteNum=60\n'
                 ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
                 ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
@@ -621,19 +628,7 @@ class USTGeneratorApp:
         self.preview_text.pack(fill="both", expand=True)
 
     def _get_envelope_preset(self, preset_name):
-        presets = {
-            "Pop": "0,10,35,0,100,100,0",
-            "Rock": "0,20,50,0,90,80,0",
-            "Breathy": "0,5,20,0,70,100,0",
-            "Sharp": "0,30,70,0,100,50,0",
-            "Opera": "0,5,15,0,100,95,0",
-            "Whisper": "0,2,10,0,60,100,0",
-            "Belt": "0,25,60,0,100,70,0",
-            "Falsetto": "0,8,25,0,80,100,0",
-            "Growl": "0,40,70,0,85,60,0",
-            "Vibrato": "0,15,40,20,100,80,0"
-        }
-        return presets.get(preset_name, "0,10,35,0,100,100,0")
+        return ENVELOPE_PRESETS.get(preset_name, HiroConfig.DEFAULT_ENVELOPE)
 
     def validate_inputs(self):
         errors = []
@@ -641,26 +636,26 @@ class USTGeneratorApp:
         # NUMERIC FIELDS
         try:
             tempo = float(self.tempo_var.get())
-            if not 60 <= tempo <= 240:
-                errors.append("Tempo: 60-240 BPM")
+            if not HiroConfig.MIN_TEMPO <= tempo <= HiroConfig.MAX_TEMPO:
+                errors.append(f"Tempo: {HiroConfig.MIN_TEMPO}-{HiroConfig.MAX_TEMPO} BPM")
         except:
             errors.append("Tempo: Enter number")
 
         try:
             length = int(self.length_var.get())
-            if not 120 <= length <= 1920:
-                errors.append("Base Length: 120-1920 ticks")
+            if not HiroConfig.MIN_NOTE_LEN <= length <= HiroConfig.MAX_NOTE_LEN:
+                errors.append(f"Base Length: {HiroConfig.MIN_NOTE_LEN}-{HiroConfig.MAX_NOTE_LEN} ticks")
         except:
             errors.append("Base Length: Enter number")
 
         for field, minv, maxv, name in [
-            (self.line_pause_var, 240, 5000, "Line Pause"),
-            (self.section_pause_var, 480, 10000, "Section Pause"),
-            (self.length_var_ctrl, 0.0, 1.0, "Len Var"),
-            (self.stretch_var, 0.0, 1.0, "Stretch"),
-            (self.pre_utter_var, 0, 200, "PreUtterance"),
-            (self.voice_overlap_var, 0, 100, "Voice Overlap"),
-            (self.intensity_base_var, 30, 150, "Intensity")
+            (self.line_pause_var, HiroConfig.MIN_LINE_PAUSE, HiroConfig.MAX_LINE_PAUSE, "Line Pause"),
+            (self.section_pause_var, HiroConfig.MIN_SECTION_PAUSE, HiroConfig.MAX_SECTION_PAUSE, "Section Pause"),
+            (self.length_var_ctrl, HiroConfig.MIN_LENGTH_VAR, HiroConfig.MAX_LENGTH_VAR, "Len Var"),
+            (self.stretch_var, HiroConfig.MIN_STRETCH, HiroConfig.MAX_STRETCH, "Stretch"),
+            (self.pre_utter_var, HiroConfig.MIN_PRE_UTTER, HiroConfig.MAX_PRE_UTTER, "PreUtterance"),
+            (self.voice_overlap_var, HiroConfig.MIN_VOICE_OVERLAP, HiroConfig.MAX_VOICE_OVERLAP, "Voice Overlap"),
+            (self.intensity_base_var, HiroConfig.MIN_INTENSITY, HiroConfig.MAX_INTENSITY, "Intensity"),
         ]:
             try:
                 val = float(field.get())
