@@ -485,7 +485,7 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hiro UST v4.2 dev")
+        self.root.title("Hiro UST v4.2")
         self.root.geometry("900x800")
         self.root.minsize(850, 850)
 
@@ -642,11 +642,6 @@ class USTGeneratorApp:
         self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
-
-        # SEED CONTROL
-        ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
-        self.seed_var = tk.StringVar(value="1234")
-        ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
 
         # SEED CONTROL
         ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
