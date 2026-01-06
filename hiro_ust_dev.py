@@ -1,19 +1,90 @@
-import logging
 import os
 import random
 import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
+from config import HiroConfig
 # IMPORT DATA MODULES
 from constants import VOWEL_CHARS, CONSONANT_CHARS
+from envelopes import ENVELOPE_PRESETS
 from hiragana_map import HIRAGANA_MAP
+from intone_utils import get_intone_settings
 from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
+from presets import (
+    build_preset_from_app,
+    apply_preset_to_app,
+    save_preset_to_file,
+    load_preset_from_file,
+)
 from scales import SCALES
+from ust_strings import (
+    UST_HEADER_TEMPLATE,
+    REST_NOTE_TEMPLATE,
+    SMALL_TSU_TEMPLATE,
+    NOTE_BLOCK_TEMPLATE,
+    TRACK_END,
+)
 
-logger = logging.getLogger(__name__)
+
+class USTWriter:
+    def __init__(self, project_name, tempo):
+        self.lines = []
+        self.note_id = 0
+        self.project_name = str(project_name)
+        self.tempo = tempo
+        self._write_header()
+
+    def _write_header(self):
+        self.lines.append(
+            UST_HEADER_TEMPLATE.format(
+                tempo=self.tempo,
+                project_name=self.project_name
+            )
+        )
+
+    def add_rest(self, length):
+        self.lines.append(
+            REST_NOTE_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length
+            )
+        )
+        self.note_id += 1
+
+    def add_small_tsu(self, root_key, length=60):
+        self.lines.append(
+            SMALL_TSU_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length,
+                root_key=int(root_key)
+            )
+        )
+        self.note_id += 1
+
+    def add_note(self, length, lyric, note_num, pre_utter, voice_overlap,
+                 intensity, envelope, pbs=0, pbw=0):
+        self.lines.append(
+            NOTE_BLOCK_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length,
+                lyric=lyric,
+                pbs=pbs,
+                pbw=pbw,
+                note_num=int(round(note_num)),
+                pre_utter=pre_utter,
+                voice_overlap=voice_overlap,
+                intensity=intensity,
+                envelope=envelope
+            )
+        )
+        self.note_id += 1
+
+    def finalize(self):
+        self.lines.append(TRACK_END)
+        return "\n".join(self.lines)
 
 
 #   FIRST CLASS
@@ -151,7 +222,7 @@ def parse_song_structure(
         all_elements.pop()
 
     if not all_elements:
-        all_elements = ["PAUSE_LINE:480"]
+        all_elements = [f"PAUSE_LINE:{HiroConfig.PAUSE_LINE_UNIT * 2}"]
 
     return parts, all_elements
 
@@ -219,7 +290,7 @@ class MelodyBrain:
                        contour_bias=0, pitch_range=70):
         scale = SCALES[scale_name]
         self.phrase_len += 1
-        settings = self._get_intone_settings(intone_level)
+        settings = get_intone_settings(intone_level)
 
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
@@ -279,14 +350,6 @@ class MelodyBrain:
 
         return root_midi + self.last_note
 
-    def _get_intone_settings(self, intone_level):
-        return {
-            "Tight (1)": {"leap": 1, "phrase": 6},
-            "Medium (2)": {"leap": 2, "phrase": 8},
-            "Wide (3)": {"leap": 3, "phrase": 10},
-            "Wild (5)": {"leap": 5, "phrase": 12}
-        }.get(intone_level, {"leap": 1, "phrase": 6})
-
     def get_intensity(self, note_height, phrase_progress):
         base = 80 + int(abs(note_height - 5) * 8)
         if phrase_progress > 0.8:
@@ -295,8 +358,12 @@ class MelodyBrain:
 
 
 def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None):
+    # Special case: '+' stretch continuation
     if phoneme == '+':
-        return int(base_length * 0.6 * length_factor)
+        factor = 0.6  # your previous logic: base_length * 0.6
+        length = int(base_length * factor * length_factor)
+        return max(HiroConfig.MIN_NOTE_LEN,
+                   min(HiroConfig.MAX_NOTE_LEN, length))
 
     phoneme_char = phoneme[0] if len(phoneme) > 0 else 'a'
     if brain:
@@ -312,7 +379,10 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
         factor = 0.5 + random.uniform(0, length_var * 1.5)
     else:
         factor = 0.7 + random.uniform(-length_var * 0.2, length_var * 0.2)
-    return max(120, int(base_length * factor * length_factor))
+
+    length = int(base_length * factor * length_factor)
+    return max(HiroConfig.MIN_NOTE_LEN,
+               min(HiroConfig.MAX_NOTE_LEN, length))
 
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
@@ -321,96 +391,82 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False,
                 contour_bias=0, pitch_range=70):
     generator = HiroUSTGenerator()
-    project_name = str(project_name)
+    writer = USTWriter(project_name=project_name, tempo=tempo)
 
-    ust = f'''[#VERSION]
-UST Version1.2
-[#SETTING]
-Tempo={tempo}
-Tracks=1
-ProjectName={project_name}
-VoiceDir=%VOICE%
-OutFile=
-CacheDir=.cache
-Tool1=wavtool.exe
-Tool2=resampler.exe
-Mode2=True
-'''
-
-    note_id = 0
     for element in text_elements:
         if element.startswith("PAUSE_LINE:"):
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
             pause_length = int(element.split(":")[1])
-            num_rests = pause_length // 240
+            num_rests = pause_length // HiroConfig.PAUSE_LINE_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength=240\nLyric=R\nNoteNum=60\n'
-                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
+                writer.add_rest(HiroConfig.PAUSE_LINE_UNIT)
             continue
 
         if element.startswith("PAUSE_SECTION:"):
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
             pause_length = int(element.split(":")[1])
-            num_rests = pause_length // 480
+            num_rests = pause_length // HiroConfig.PAUSE_SECTION_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength=480\nLyric=R\nNoteNum=60\n'
-                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
+                writer.add_rest(HiroConfig.PAUSE_SECTION_UNIT)
             continue
 
-        else:
-            romaji_phoneme = element
-            if romaji_phoneme == 'っ':
-                note_length = 60
-                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=っ\nNoteNum={int(root_key)}\n'
-                ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=30\n'
-                ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
-                continue
+        romaji_phoneme = element
 
-            hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
-            stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
+        # small tsu
+        if romaji_phoneme == 'っ':
+            writer.add_small_tsu(root_key, length=60)
+            continue
 
-            for stretch_phoneme, length_factor in stretch_notes:
-                note_length = get_note_length(stretch_phoneme, base_length, length_var, length_factor, melody_brain)
+        hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
+        stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
-                if lyrical_mode:
-                    note_num = melody_brain.get_smart_note(
-                        root_key, scale, stretch_phoneme, intone_level,
-                        flat_mode, quartertone_mode, use_motifs, chord_mode,
-                        contour_bias, pitch_range)
-                else:
-                    note_num = get_random_note(root_key, scale, flat_mode=flat_mode, quartertone_mode=quartertone_mode)
+        for stretch_phoneme, length_factor in stretch_notes:
+            note_length = get_note_length(
+                stretch_phoneme, base_length, length_var, length_factor, melody_brain
+            )
 
-                ust += f'\n[#{note_id:04d}]\n'
-                ust += f'Length={note_length}\n'
-                ust += f'Lyric={stretch_phoneme}\n'
-                note_num_safe = int(round(note_num))
-                # QUARTER-TONE
-                if quartertone_mode and note_num != int(note_num):
-                    fraction = note_num - int(note_num)
-                    pbs = int(fraction * 50)
-                    ust += f'PBS={pbs}\nPBW=10\n'
-                else:
-                    ust += f'PBS=0\nPBW=0\n'
-                ust += f'NoteNum={note_num_safe}\n'
-                ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
-                phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
-                last_note_safe = getattr(melody_brain, 'last_note', 0)
-                base_intensity = intensity_base
-                melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
-                intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
-                ust += f'Intensity={max(50, min(120, intensity))}\n'
-                ust += f'StartPoint=0\nEnvelope={envelope}\n'
-                note_id += 1
+            if lyrical_mode:
+                note_num = melody_brain.get_smart_note(
+                    root_key, scale, stretch_phoneme, intone_level,
+                    flat_mode, quartertone_mode, use_motifs, chord_mode,
+                    contour_bias, pitch_range
+                )
+            else:
+                note_num = get_random_note(
+                    root_key, scale,
+                    flat_mode=flat_mode,
+                    quarter_tone=quartertone_mode
+                )
 
-    ust += '\n[#TRACKEND]\n'
-    return ust
+            # QUARTER-TONE handling
+            pbs = 0
+            pbw = 0
+            if quartertone_mode and note_num != int(note_num):
+                fraction = note_num - int(note_num)
+                pbs = int(fraction * 50)
+                pbw = 10
+
+            phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
+            last_note_safe = getattr(melody_brain, 'last_note', 0)
+            base_intensity = intensity_base
+            melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
+            intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
+
+            writer.add_note(
+                length=note_length,
+                lyric=stretch_phoneme,
+                note_num=note_num,
+                pre_utter=pre_utterance,
+                voice_overlap=voice_overlap,
+                intensity=intensity,
+                envelope=envelope,
+                pbs=pbs,
+                pbw=pbw
+            )
+
+    return writer.finalize()
 
 
 def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False,
@@ -429,24 +485,25 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hiro UST v4.2 dev")
+        self.root.title("Hiro UST v4.2")
         self.root.geometry("900x800")
         self.root.minsize(850, 850)
 
         try:
             if getattr(sys, 'frozen', False):
-                # PyInstaller EXE
+                # running from EXE
                 icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
             else:
-                icon_path = 'hibiki.ico'
+                # running from .py
+                icon_path = os.path.join(os.path.dirname(__file__), 'hibiki.ico')
 
-            self.root.iconbitmap(icon_path)
-            logger.info(f"Logo loaded: {icon_path}")
-        except:
-            logger.warning("hibiki.ico not found - using default")
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception:
+            pass
 
         # =============== MAIN LYRICS ===============
-        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
+        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana/Katakana)", padding=12)
         input_frame.pack(fill="both", expand=True, padx=15, pady=(15, 10))
 
         self.lyrics_text = scrolledtext.ScrolledText(input_frame, height=10, font=("Consolas", 10))
@@ -470,14 +527,16 @@ class USTGeneratorApp:
         tempo_frame = ttk.Frame(timing_panel)
         tempo_frame.pack(fill="x", pady=(0, 8))
         self.tempo_var = tk.StringVar(value="120.00")
-        ttk.Entry(tempo_frame, textvariable=self.tempo_var, width=12).pack(side="left")
+        ttk.Entry(tempo_frame,
+                  textvariable=self.tempo_var, width=12).pack(side="left")
         ttk.Label(tempo_frame, text="ticks/note", font=("TkDefaultFont", 8)).pack(side="right")
 
         ttk.Label(timing_panel, text="Base Length:").pack(anchor="w")
         base_frame = ttk.Frame(timing_panel)
         base_frame.pack(fill="x", pady=(0, 8))
         self.length_var = tk.StringVar(value="240")
-        ttk.Entry(base_frame, textvariable=self.length_var, width=12).pack(side="left")
+        ttk.Entry(base_frame,
+                  textvariable=self.length_var, width=12).pack(side="left")
         ttk.Label(base_frame, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         pause_frame = ttk.Frame(timing_panel)
@@ -488,14 +547,16 @@ class USTGeneratorApp:
 
         ttk.Label(line_row, text="Line:").pack(side="left")
         self.line_pause_var = tk.StringVar(value="960")
-        ttk.Entry(line_row, textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Entry(line_row,
+                  textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
         ttk.Label(line_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         sect_row = ttk.Frame(pause_frame)
         sect_row.pack(fill="x")
         ttk.Label(sect_row, text="Sect:").pack(side="left")
         self.section_pause_var = tk.StringVar(value="1920")
-        ttk.Entry(sect_row, textvariable=self.section_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Entry(sect_row,
+                  textvariable=self.section_pause_var, width=10).pack(side="left", padx=(5, 15))
         ttk.Label(sect_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         # Panel 2: Voice & Length (Left-Center)
@@ -503,12 +564,14 @@ class USTGeneratorApp:
         voice_panel.pack(side="left", fill="both", expand=True, padx=(0, 8))
 
         ttk.Label(voice_panel, text="Voice:").pack(anchor="w")
-        self.voice_var = ttk.Combobox(voice_panel, values=list(KEY_ROOTS.keys()), state="readonly", width=15)
+        self.voice_var = ttk.Combobox(voice_panel,
+                                      values=list(KEY_ROOTS.keys()), state="readonly", width=15)
         self.voice_var.set("Alto")
         self.voice_var.pack(fill="x", pady=(0, 8))
 
         ttk.Label(voice_panel, text="Scale:").pack(anchor="w")
-        self.scale_var = ttk.Combobox(voice_panel, values=list(SCALES.keys()), state="readonly", width=15)
+        self.scale_var = ttk.Combobox(voice_panel,
+                                      values=list(SCALES.keys()), state="readonly", width=15)
         self.scale_var.set("Major Pentatonic")
         self.scale_var.pack(fill="x", pady=(0, 8))
 
@@ -516,32 +579,40 @@ class USTGeneratorApp:
         length_frame.pack(fill="x")
         ttk.Label(length_frame, text="Len Var:").pack(side="left")
         self.length_var_ctrl = tk.StringVar(value="0.3")
-        ttk.Entry(length_frame, textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=(5, 15))
+        ttk.Entry(length_frame,
+                  textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=(5, 15))
         ttk.Label(length_frame, text="Stretch:").pack(side="left")
         self.stretch_var = tk.StringVar(value="0.25")
-        ttk.Entry(length_frame, textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
+        ttk.Entry(length_frame,
+                  textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
 
         # Panel 3: Melody Modes (Center)
         melody_panel = ttk.LabelFrame(controls_main, text="🎵 Melody Modes", padding=10)
         melody_panel.pack(side="left", fill="y", padx=(0, 8))
 
         self.motif_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(melody_panel, text="🎼 Motif Memory", variable=self.motif_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎼 Motif Memory",
+                        variable=self.motif_var).pack(anchor="w", pady=2)
 
         self.lyrical_mode_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(melody_panel, text="🎭 Lyrical Mode", variable=self.lyrical_mode_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎭 Lyrical Mode",
+                        variable=self.lyrical_mode_var).pack(anchor="w", pady=2)
 
         self.flat_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="🎹 Monotone (Flat)", variable=self.flat_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎹 Monotone (Flat)",
+                        variable=self.flat_var).pack(anchor="w", pady=2)
 
         self.quartertone_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)", variable=self.quartertone_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)",
+                        variable=self.quartertone_var).pack(anchor="w", pady=2)
 
         self.chord_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="🎸 I-IV-V Chords", variable=self.chord_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎸 I-IV-V Chords",
+                        variable=self.chord_var).pack(anchor="w", pady=2)
 
         ttk.Label(melody_panel, text="Intone:").pack(anchor="w", pady=(8, 0))
-        self.intone_var = ttk.Combobox(melody_panel, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
+        self.intone_var = ttk.Combobox(melody_panel,
+                                       values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
                                        state="readonly", width=15)
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
@@ -550,12 +621,12 @@ class USTGeneratorApp:
         ttk.Label(melody_panel, text="Curve:").pack(anchor="w")
         self.contour_var = tk.StringVar(value="0")
         ttk.Scale(melody_panel, from_=-50, to=50, orient="horizontal",
-                  variable=self.contour_var, length=100).pack(fill="x", pady=(0, 2))  # ← 100px
+                  variable=self.contour_var, length=100).pack(fill="x", pady=(0, 2))
 
         ttk.Label(melody_panel, text="Range:").pack(anchor="w")
         self.range_var = tk.StringVar(value="70")
         ttk.Scale(melody_panel, from_=40, to=120, orient="horizontal",
-                  variable=self.range_var, length=100).pack(fill="x", pady=(0, 8))  # ← 100px
+                  variable=self.range_var, length=100).pack(fill="x", pady=(0, 8))
 
         # Panel 4: UST + Output (COMBINED)
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
@@ -568,77 +639,87 @@ class USTGeneratorApp:
         # Pre + Ovl
         ttk.Label(ust_frame, text="P:").grid(row=0, column=0, sticky="w")
         self.pre_utter_var = tk.StringVar(value="25")
-        ttk.Entry(ust_frame, textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
 
         ttk.Label(ust_frame, text="O:").grid(row=0, column=2, sticky="w")
         self.voice_overlap_var = tk.StringVar(value="10")
-        ttk.Entry(ust_frame, textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
 
         # Int + Env
         ttk.Label(ust_frame, text="I:").grid(row=0, column=4, sticky="w")
         self.intensity_base_var = tk.StringVar(value="80")
-        ttk.Entry(ust_frame, textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
 
         ttk.Label(ust_frame, text="E:").grid(row=0, column=6, sticky="w")
         self.envelope_var = tk.StringVar(value="Pop")
         env_presets = ["Pop", "Rock", "Breathy", "Sharp", "Opera", "Whisper", "Belt", "Falsetto", "Growl", "Vibrato"]
-        self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
+        self.env_combo = ttk.Combobox(ust_frame,
+                                      textvariable=self.envelope_var,
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
 
         # SEED CONTROL
         ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
         self.seed_var = tk.StringVar(value="1234")
-        ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
+
+        # Randomize seed button
+        ttk.Button(ust_frame, text="🎲", width=3,
+                   command=self.randomize_seed).grid(row=1, column=2, padx=(2, 0), pady=(5, 0))
 
         # Project + Buttons
         ttk.Label(output_panel, text="Proj:").pack(anchor="w")
         self.project_var = tk.StringVar(value="Hiro_Main")
-        ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 6))
+        ttk.Entry(output_panel,
+                  textvariable=self.project_var).pack(fill="x", pady=(0, 6))
 
         btn_frame = ttk.Frame(output_panel)
         btn_frame.pack(fill="x")
-        ttk.Button(btn_frame, text="🎵 Gen", command=self.generate_ust).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="💾 Save", command=self.save_ust_only).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="🎵 Gen",
+                   command=self.generate_ust).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="💾 Save",
+                   command=self.save_ust_only).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📋 Prev",
+                   command=self.preview_phonemes).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="🧹 Clear",
+                   command=self.clear).pack(fill="x", pady=1)
 
-        ttk.Button(btn_frame, text="💾 Preset", command=self.save_preset).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="📂 Load", command=self.load_preset).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="💾 Preset",
+                   command=self.save_preset).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📂 Load",
+                   command=self.load_preset).pack(fill="x", pady=1)
 
         # Status + Preview
         status_frame = ttk.Frame(root)
         status_frame.pack(fill="x", padx=15, pady=(0, 10))
         self.status_var = tk.StringVar(value="✅ Ready - All controls visible!")
-        ttk.Label(status_frame, textvariable=self.status_var, relief="sunken", anchor="w").pack(fill="x")
+        status_entry = tk.Entry(
+            status_frame,
+            textvariable=self.status_var,
+            state="readonly",
+            font=("Consolas", 9),
+            relief="sunken",
+            bd=1,
+            bg="white"
+        )
+        status_entry.pack(fill="x", ipady=4)
 
         preview_frame = ttk.LabelFrame(root, text="👀 Preview", padding=8)
         preview_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
-        # LOG
-        try:
-            from logger import TesterLogger
-            self.logger = TesterLogger(self)
-            self.logger.setup()
-        except:
-            print("No logger")
+    def randomize_seed(self):
+        new_seed = random.randint(0, 2 ** 31 - 1)
+        self.seed_var.set(str(new_seed))
+        self.status_var.set(f"🎲 New seed: {new_seed}")
 
     def _get_envelope_preset(self, preset_name):
-        presets = {
-            "Pop": "0,10,35,0,100,100,0",
-            "Rock": "0,20,50,0,90,80,0",
-            "Breathy": "0,5,20,0,70,100,0",
-            "Sharp": "0,30,70,0,100,50,0",
-            "Opera": "0,5,15,0,100,95,0",
-            "Whisper": "0,2,10,0,60,100,0",
-            "Belt": "0,25,60,0,100,70,0",
-            "Falsetto": "0,8,25,0,80,100,0",
-            "Growl": "0,40,70,0,85,60,0",
-            "Vibrato": "0,15,40,20,100,80,0"
-        }
-        return presets.get(preset_name, "0,10,35,0,100,100,0")
+        return ENVELOPE_PRESETS.get(preset_name, HiroConfig.DEFAULT_ENVELOPE)
 
     def validate_inputs(self):
         errors = []
@@ -646,26 +727,26 @@ class USTGeneratorApp:
         # NUMERIC FIELDS
         try:
             tempo = float(self.tempo_var.get())
-            if not 60 <= tempo <= 240:
-                errors.append("Tempo: 60-240 BPM")
+            if not HiroConfig.MIN_TEMPO <= tempo <= HiroConfig.MAX_TEMPO:
+                errors.append(f"Tempo: {HiroConfig.MIN_TEMPO}-{HiroConfig.MAX_TEMPO} BPM")
         except:
             errors.append("Tempo: Enter number")
 
         try:
             length = int(self.length_var.get())
-            if not 120 <= length <= 1920:
-                errors.append("Base Length: 120-1920 ticks")
+            if not HiroConfig.MIN_NOTE_LEN <= length <= HiroConfig.MAX_NOTE_LEN:
+                errors.append(f"Base Length: {HiroConfig.MIN_NOTE_LEN}-{HiroConfig.MAX_NOTE_LEN} ticks")
         except:
             errors.append("Base Length: Enter number")
 
         for field, minv, maxv, name in [
-            (self.line_pause_var, 240, 5000, "Line Pause"),
-            (self.section_pause_var, 480, 10000, "Section Pause"),
-            (self.length_var_ctrl, 0.0, 1.0, "Len Var"),
-            (self.stretch_var, 0.0, 1.0, "Stretch"),
-            (self.pre_utter_var, 0, 200, "PreUtterance"),
-            (self.voice_overlap_var, 0, 100, "Voice Overlap"),
-            (self.intensity_base_var, 30, 150, "Intensity")
+            (self.line_pause_var, HiroConfig.MIN_LINE_PAUSE, HiroConfig.MAX_LINE_PAUSE, "Line Pause"),
+            (self.section_pause_var, HiroConfig.MIN_SECTION_PAUSE, HiroConfig.MAX_SECTION_PAUSE, "Section Pause"),
+            (self.length_var_ctrl, HiroConfig.MIN_LENGTH_VAR, HiroConfig.MAX_LENGTH_VAR, "Len Var"),
+            (self.stretch_var, HiroConfig.MIN_STRETCH, HiroConfig.MAX_STRETCH, "Stretch"),
+            (self.pre_utter_var, HiroConfig.MIN_PRE_UTTER, HiroConfig.MAX_PRE_UTTER, "PreUtterance"),
+            (self.voice_overlap_var, HiroConfig.MIN_VOICE_OVERLAP, HiroConfig.MAX_VOICE_OVERLAP, "Voice Overlap"),
+            (self.intensity_base_var, HiroConfig.MIN_INTENSITY, HiroConfig.MAX_INTENSITY, "Intensity"),
         ]:
             try:
                 val = float(field.get())
@@ -701,8 +782,6 @@ class USTGeneratorApp:
             parts, elements = parse_song_structure(lyrics)
             self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
             phonemes_only = [e for e in elements if not e.startswith('PAUSE')]
-            self.logger.log_phonemes(phonemes_only)
-            self.logger.log_sections(parts)
 
             root_key = KEY_ROOTS[self.voice_var.get()]
             ust_content = text_to_ust(
@@ -724,14 +803,10 @@ class USTGeneratorApp:
             self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
 
-            logger.info(f"Generated UST with seed={self.seed_var.get()}, {len(elements)} phonemes")
-            return ust_content
-
     def generate_ust(self):
         """Generate + Auto-save NEXT TO EXE"""
         ust_content = self._generate_content()
         if not ust_content:
-            self.logger.show_stats()
             return
 
         # Save NEXT TO EXE
@@ -816,36 +891,18 @@ class USTGeneratorApp:
         self.status_var.set("🧹 Lyrics cleared ✓")
 
     def save_preset(self):
-        preset = {
-            'tempo': self.tempo_var.get(),
-            'length': self.length_var.get(),
-            'voice': self.voice_var.get(),
-            'scale': self.scale_var.get(),
-            'intone': self.intone_var.get(),
-            'length_var': self.length_var_ctrl.get(),
-            'stretch': self.stretch_var.get(),
-            'pre_utterance': self.pre_utter_var.get(),
-            'voice_overlap': self.voice_overlap_var.get(),
-            'intensity': self.intensity_base_var.get(),
-            'motif': self.motif_var.get(),
-            'lyrical': self.lyrical_mode_var.get(),
-            'flat': self.flat_var.get(),
-            'quartertone': self.quartertone_var.get(),
-            'project': self.project_var.get(),
-            'line_pause': self.line_pause_var.get(),
-            'section_pause': self.section_pause_var.get(),
-            'envelope': self.envelope_var.get()
-        }
+        preset = build_preset_from_app(self)
         filename = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("JSON Preset", "*.json")],
             initialfile=f"{self.project_var.get()}_preset.json"
         )
         if filename:
-            import json
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(preset, f, indent=2, ensure_ascii=False)
-            self.status_var.set(f"✅ Preset saved: {os.path.basename(filename)}")
+            try:
+                save_preset_to_file(preset, filename)
+                self.status_var.set(f"✅ Preset saved: {os.path.basename(filename)}")
+            except Exception as e:
+                self.status_var.set(f"❌ Preset save failed: {str(e)[:50]}")
 
     def load_preset(self):
         filename = filedialog.askopenfilename(
@@ -854,46 +911,10 @@ class USTGeneratorApp:
         )
         if not filename:
             return
-
         try:
-            import json
-            with open(filename, 'r', encoding='utf-8') as f:
-                preset = json.load(f)
-
-            # Set ALL controls
-            var_map = {
-                'tempo': self.tempo_var,
-                'length': self.length_var,
-                'voice': self.voice_var,
-                'scale': self.scale_var,
-                'intone': self.intone_var,
-                'length_var': self.length_var_ctrl,
-                'stretch': self.stretch_var,
-                'pre_utterance': self.pre_utter_var,
-                'voice_overlap': self.voice_overlap_var,
-                'intensity': self.intensity_base_var,
-                'project': self.project_var,
-                'line_pause': self.line_pause_var,
-                'section_pause': self.section_pause_var,
-                'envelope': self.envelope_var
-            }
-
-            for key, var in var_map.items():
-                if key in preset:
-                    var.set(str(preset[key]))
-
-            # Boolean checkboxes
-            for checkbox, key in [
-                (self.motif_var, 'motif'),
-                (self.lyrical_mode_var, 'lyrical'),
-                (self.flat_var, 'flat'),
-                (self.quartertone_var, 'quartertone')
-            ]:
-                if key in preset:
-                    checkbox.set(bool(preset[key]))
-
+            preset = load_preset_from_file(filename)
+            apply_preset_to_app(self, preset)
             self.status_var.set(f"✅ Loaded: {os.path.basename(filename)}")
-
         except Exception as e:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
 
