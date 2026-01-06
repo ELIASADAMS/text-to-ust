@@ -5,3 +5,5 @@
 /build
 /dist
 *.pyc
+hiro_tester.log
+*.log
