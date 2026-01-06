@@ -1,1 +1,0 @@
-pyinstaller --onefile --windowed --name "Hiro UST v4.2 dev" --icon hibiki.ico --add-data "hibiki.ico;." --add-data "constants.py;." --add-data "hiragana_map.py;." --add-data "logger.py;." --add-data "key_roots.py;." --add-data "mora_trie_data.py;." --add-data "scales.py;." hiro_ust_dev.py
