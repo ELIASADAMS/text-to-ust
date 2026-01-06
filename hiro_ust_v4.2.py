@@ -449,7 +449,7 @@ class USTGeneratorApp:
             pass
 
         # =============== MAIN LYRICS ===============
-        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
+        input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana/Katakana)", padding=12)
         input_frame.pack(fill="both", expand=True, padx=15, pady=(15, 10))
 
         self.lyrics_text = scrolledtext.ScrolledText(input_frame, height=10, font=("Consolas", 10))
