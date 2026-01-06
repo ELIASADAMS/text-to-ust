@@ -1,9 +1,8 @@
 # logger.py - eli_lab TESTER v2.2 (100% FIXED)
 import logging
-from datetime import datetime
-import tkinter as tk
-from tkinter import ttk, scrolledtext
 from collections import Counter
+from datetime import datetime
+from tkinter import ttk, scrolledtext
 
 
 class TesterLogger:
@@ -21,7 +20,7 @@ class TesterLogger:
         }
 
     def setup(self):
-        """eli_lab tester logging - bulletproof"""
+        """eli_lab tester logging"""
         try:
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
@@ -61,8 +60,7 @@ class TesterLogger:
         logging.error(msg)
         self._add_to_gui("ERROR", f"❌ ERROR #{self.stats['errors']}: {msg}")
 
-    def _add_to_gui(self, level, msg):  # ✅ FIXED - New method
-        """Safe GUI logging"""
+    def _add_to_gui(self, level, msg):
         try:
             timestamp = datetime.now().strftime('%H:%M:%S')
             formatted = f"[{timestamp}] {level:7} | {msg}"
@@ -120,11 +118,11 @@ class TesterLogger:
             dur_avg = self.safe_avg(self.stats['durations'])
 
             stats_msg = f"""🧪 eli_lab TEST STATS v2.2:
-📊 Phonemes: {phoneme_total} | {dict(self.stats['phonemes'].most_common(6))}
-🎼 Notes: {note_count} | Range: {note_range:.1f}
-⏱️ Durations: {dur_count} | Avg: {dur_avg:.0f}ticks
-📂 Pauses: {self.stats['pauses']} | Sections: {self.stats['sections']}
-❌ Errors: {self.stats['errors']}"""
+Phonemes: {phoneme_total} | {dict(self.stats['phonemes'].most_common(6))}
+Notes: {note_count} | Range: {note_range:.1f}
+Durations: {dur_count} | Avg: {dur_avg:.0f}ticks
+Pauses: {self.stats['pauses']} | Sections: {self.stats['sections']}
+Errors: {self.stats['errors']}"""
 
             self.info(stats_msg)
         except Exception as e:

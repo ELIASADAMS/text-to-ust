@@ -295,7 +295,7 @@ class MelodyBrain:
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
                     target_note = random.choice(cons_notes)
 
-            # CHORD PROGRESSION AWARENESS (NEW)
+            # CHORD PROGRESSION
             if chord_mode:
                 beat_pos = (self.phrase_len - 1) % 8  # 0-7 cycle
                 if beat_pos in [0, 1, 2]:  # I chord (C)
@@ -308,7 +308,7 @@ class MelodyBrain:
                     chord_root = None
 
                 if chord_root is not None:
-                    # Chord tones: root, 3rd, 5th (scale-safe)
+                    # Chord tones: root, 3rd, 5th
                     chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
                     chord_tones = [n for n in chord_tones if n in scale]
                     if chord_tones:
@@ -473,7 +473,7 @@ class USTGeneratorApp:
 
         try:
             if getattr(sys, 'frozen', False):
-                # PyInstaller EXE: Use bundled temp folder
+                # PyInstaller EXE
                 icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
             else:
                 # Development: Use local file
@@ -589,7 +589,7 @@ class USTGeneratorApp:
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
         output_panel.pack(side="right", fill="both", expand=True)
 
-        # Compact UST controls
+        # UST controls
         ust_frame = ttk.Frame(output_panel)
         ust_frame.pack(fill="x", pady=2)
 
@@ -683,7 +683,7 @@ class USTGeneratorApp:
             except:
                 errors.append(f"{name}: Enter number")
 
-        # COMBOBOXES (Quick check)
+        # COMBOBOXES
         if self.voice_var.get() not in KEY_ROOTS:
             errors.append("Voice: Select from dropdown")
         if self.scale_var.get() not in SCALES:

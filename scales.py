@@ -1,4 +1,4 @@
-"""Musical scales for melody generation."""
+"""Musical scales for melody generation"""
 
 SCALES = {
     # 12-note (Chromatic)

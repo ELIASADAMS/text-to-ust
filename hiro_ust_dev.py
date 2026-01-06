@@ -14,6 +14,7 @@ from scales import SCALES
 
 logger = logging.getLogger(__name__)
 
+
 #   FIRST CLASS
 class HiroUSTGenerator:
     _instance = None
@@ -70,7 +71,7 @@ class HiroUSTGenerator:
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
 
-    # DOUBLE VOWELS (e.g., "aa", "ii")
+    # DOUBLE VOWELS ("aa", "ii")
     if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
         return [(phoneme[0], 1.8)]  # Long vowel
 
@@ -200,7 +201,7 @@ class MelodyBrain:
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)",
                        flat_mode=False, quarter_tone=False, use_motifs=True, chord_mode=False,
-                       contour_bias=0, pitch_range=70):  # ← FIXED SIGNATURE
+                       contour_bias=0, pitch_range=70):
         scale = SCALES[scale_name]
         self.phrase_len += 1
         settings = self._get_intone_settings(intone_level)
@@ -228,7 +229,7 @@ class MelodyBrain:
         else:
             if use_motifs:
                 motif_note = self.motif_memory.get_motif_note(self.last_note, scale)
-                target_note = motif_note * 0.6 + contour_target * 0.4  # Blend!
+                target_note = motif_note * 0.6 + contour_target * 0.4
             else:
                 if is_vowel:
                     high_notes = scale[-3:]
@@ -240,12 +241,12 @@ class MelodyBrain:
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
                     target_note = random.choice(cons_notes) + contour_target * 0.1
 
-            # FIXED CHORD PROGRESSION
+            # CHORD PROGRESSION
             if chord_mode:
                 beat_pos = (self.phrase_len - 1) % 8
                 chord_root = {0: 0, 3: 5, 5: 7}.get(beat_pos // 3 % 3, 0)  # I-IV-V cycle
                 chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
-                chord_tones = [n for n in chord_tones if n in scale]  # FIXED!
+                chord_tones = [n for n in chord_tones if n in scale]
                 if chord_tones:
                     target_note = min(chord_tones, key=lambda x: abs(x - target_note))
 
@@ -259,7 +260,7 @@ class MelodyBrain:
         if quarter_tone and random.random() < 0.3 and is_vowel:
             self.last_note += random.choice([0, 0.5, -0.5])
         if flat_mode:
-            self.last_note = 5  # Scale middle
+            self.last_note = 5
 
         return root_midi + self.last_note
 
@@ -375,7 +376,7 @@ Mode2=True
                 ust += f'Length={note_length}\n'
                 ust += f'Lyric={stretch_phoneme}\n'
                 note_num_safe = int(round(note_num))
-                # QUARTER-TONE: Use PBS/PBW for microtiming
+                # QUARTER-TONE
                 if quartertone_mode and note_num != int(note_num):
                     fraction = note_num - int(note_num)
                     pbs = int(fraction * 50)
@@ -570,7 +571,7 @@ class USTGeneratorApp:
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
 
-        # SEED CONTROL (add after envelope combo)
+        # SEED CONTROL
         ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
         self.seed_var = tk.StringVar(value="1234")
         ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
@@ -658,7 +659,7 @@ class USTGeneratorApp:
             except:
                 errors.append(f"{name}: Enter number")
 
-        # COMBOBOXES (Quick check)
+        # COMBOBOXES
         if self.voice_var.get() not in KEY_ROOTS:
             errors.append("Voice: Select from dropdown")
         if self.scale_var.get() not in SCALES:
@@ -687,7 +688,6 @@ class USTGeneratorApp:
             phonemes_only = [e for e in elements if not e.startswith('PAUSE')]
             self.logger.log_phonemes(phonemes_only)
             self.logger.log_sections(parts)
-
 
             root_key = KEY_ROOTS[self.voice_var.get()]
             ust_content = text_to_ust(
