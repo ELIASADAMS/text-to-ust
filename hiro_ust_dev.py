@@ -8,10 +8,10 @@ from tkinter import ttk, scrolledtext, filedialog
 # IMPORT DATA MODULES
 from constants import VOWEL_CHARS, CONSONANT_CHARS
 from hiragana_map import HIRAGANA_MAP
+from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
-from kana_to_hiragana import convert_lyrics
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,7 @@ class HiroUSTGenerator:
                     i = start + 1
 
         return phonemes
+
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
