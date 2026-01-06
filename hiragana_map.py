@@ -1,4 +1,4 @@
-"""Romaji to Hiragana mapping"""
+"""Romaji to Hiragana"""
 
 HIRAGANA_MAP = {
     # Vowels
