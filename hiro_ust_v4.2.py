@@ -13,6 +13,71 @@ from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
+from ust_strings import (
+    UST_HEADER_TEMPLATE,
+    REST_NOTE_TEMPLATE,
+    SMALL_TSU_TEMPLATE,
+    NOTE_BLOCK_TEMPLATE,
+    TRACK_END,
+)
+
+
+class USTWriter:
+    def __init__(self, project_name, tempo):
+        self.lines = []
+        self.note_id = 0
+        self.project_name = str(project_name)
+        self.tempo = tempo
+        self._write_header()
+
+    def _write_header(self):
+        self.lines.append(
+            UST_HEADER_TEMPLATE.format(
+                tempo=self.tempo,
+                project_name=self.project_name
+            )
+        )
+
+    def add_rest(self, length):
+        self.lines.append(
+            REST_NOTE_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length
+            )
+        )
+        self.note_id += 1
+
+    def add_small_tsu(self, root_key, length=60):
+        self.lines.append(
+            SMALL_TSU_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length,
+                root_key=int(root_key)
+            )
+        )
+        self.note_id += 1
+
+    def add_note(self, length, lyric, note_num, pre_utter, voice_overlap,
+                 intensity, envelope, pbs=0, pbw=0):
+        self.lines.append(
+            NOTE_BLOCK_TEMPLATE.format(
+                note_id=self.note_id,
+                length=length,
+                lyric=lyric,
+                pbs=pbs,
+                pbw=pbw,
+                note_num=int(round(note_num)),
+                pre_utter=pre_utter,
+                voice_overlap=voice_overlap,
+                intensity=intensity,
+                envelope=envelope
+            )
+        )
+        self.note_id += 1
+
+    def finalize(self):
+        self.lines.append(TRACK_END)
+        return "\n".join(self.lines)
 
 
 #   FIRST CLASS
@@ -327,23 +392,8 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False,
                 contour_bias=0, pitch_range=70):
     generator = HiroUSTGenerator()
-    project_name = str(project_name)
+    writer = USTWriter(project_name=project_name, tempo=tempo)
 
-    ust = f'''[#VERSION]
-UST Version1.2
-[#SETTING]
-Tempo={tempo}
-Tracks=1
-ProjectName={project_name}
-VoiceDir=%VOICE%
-OutFile=
-CacheDir=.cache
-Tool1=wavtool.exe
-Tool2=resampler.exe
-Mode2=True
-'''
-
-    note_id = 0
     for element in text_elements:
         if element.startswith("PAUSE_LINE:"):
             melody_brain.phrase_len = 0
@@ -351,10 +401,7 @@ Mode2=True
             pause_length = int(element.split(":")[1])
             num_rests = pause_length // HiroConfig.PAUSE_LINE_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength={HiroConfig.PAUSE_LINE_UNIT}\nLyric=R\nNoteNum=60\n'
-                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
+                writer.add_rest(HiroConfig.PAUSE_LINE_UNIT)
             continue
 
         if element.startswith("PAUSE_SECTION:"):
@@ -363,60 +410,64 @@ Mode2=True
             pause_length = int(element.split(":")[1])
             num_rests = pause_length // HiroConfig.PAUSE_SECTION_UNIT
             for _ in range(num_rests):
-                ust += f'\n[#{note_id:04d}]\nLength={HiroConfig.PAUSE_SECTION_UNIT}\nLyric=R\nNoteNum=60\n'
-                ust += 'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\nModulation=0\nPBS=0\n'
-                ust += 'PBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
+                writer.add_rest(HiroConfig.PAUSE_SECTION_UNIT)
             continue
 
-        else:
-            romaji_phoneme = element
-            if romaji_phoneme == 'っ':
-                note_length = 60
-                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=っ\nNoteNum={int(root_key)}\n'
-                ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=30\n'
-                ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
-                note_id += 1
-                continue
+        romaji_phoneme = element
 
-            hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
-            stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
+        # small tsu
+        if romaji_phoneme == 'っ':
+            writer.add_small_tsu(root_key, length=60)
+            continue
 
-            for stretch_phoneme, length_factor in stretch_notes:
-                note_length = get_note_length(stretch_phoneme, base_length, length_var, length_factor, melody_brain)
+        hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
+        stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
-                if lyrical_mode:
-                    note_num = melody_brain.get_smart_note(
-                        root_key, scale, stretch_phoneme, intone_level,
-                        flat_mode, quartertone_mode, use_motifs, chord_mode,
-                        contour_bias, pitch_range)
-                else:
-                    note_num = get_random_note(root_key, scale, flat_mode=flat_mode, quartertone_mode=quartertone_mode)
+        for stretch_phoneme, length_factor in stretch_notes:
+            note_length = get_note_length(
+                stretch_phoneme, base_length, length_var, length_factor, melody_brain
+            )
 
-                ust += f'\n[#{note_id:04d}]\n'
-                ust += f'Length={note_length}\n'
-                ust += f'Lyric={stretch_phoneme}\n'
-                note_num_safe = int(round(note_num))
-                # QUARTER-TONE
-                if quartertone_mode and note_num != int(note_num):
-                    fraction = note_num - int(note_num)
-                    pbs = int(fraction * 50)
-                    ust += f'PBS={pbs}\nPBW=10\n'
-                else:
-                    ust += f'PBS=0\nPBW=0\n'
-                ust += f'NoteNum={note_num_safe}\n'
-                ust += f'PreUtterance={pre_utterance}\nVoiceOverlap={voice_overlap}\n'
-                phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
-                last_note_safe = getattr(melody_brain, 'last_note', 0)
-                base_intensity = intensity_base
-                melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
-                intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
-                ust += f'Intensity={max(50, min(120, intensity))}\n'
-                ust += f'StartPoint=0\nEnvelope={envelope}\n'
-                note_id += 1
+            if lyrical_mode:
+                note_num = melody_brain.get_smart_note(
+                    root_key, scale, stretch_phoneme, intone_level,
+                    flat_mode, quartertone_mode, use_motifs, chord_mode,
+                    contour_bias, pitch_range
+                )
+            else:
+                note_num = get_random_note(
+                    root_key, scale,
+                    flat_mode=flat_mode,
+                    quarter_tone=quartertone_mode
+                )
 
-    ust += '\n[#TRACKEND]\n'
-    return ust
+            # QUARTER-TONE handling
+            pbs = 0
+            pbw = 0
+            if quartertone_mode and note_num != int(note_num):
+                fraction = note_num - int(note_num)
+                pbs = int(fraction * 50)
+                pbw = 10
+
+            phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
+            last_note_safe = getattr(melody_brain, 'last_note', 0)
+            base_intensity = intensity_base
+            melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
+            intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
+
+            writer.add_note(
+                length=note_length,
+                lyric=stretch_phoneme,
+                note_num=note_num,
+                pre_utter=pre_utterance,
+                voice_overlap=voice_overlap,
+                intensity=intensity,
+                envelope=envelope,
+                pbs=pbs,
+                pbw=pbw
+            )
+
+    return writer.finalize()
 
 
 def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=False,
@@ -441,11 +492,15 @@ class USTGeneratorApp:
 
         try:
             if getattr(sys, 'frozen', False):
-                # PyInstaller EXE
+                # running from EXE
                 icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
             else:
-                icon_path = 'hibiki.ico'
-        except:
+                # running from .py
+                icon_path = os.path.join(os.path.dirname(__file__), 'hibiki.ico')
+
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception:
             pass
 
         # =============== MAIN LYRICS ===============
@@ -594,6 +649,15 @@ class USTGeneratorApp:
         self.seed_var = tk.StringVar(value="1234")
         ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
 
+        # SEED CONTROL
+        ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
+        self.seed_var = tk.StringVar(value="1234")
+        ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
+
+        # Randomize seed button
+        ttk.Button(ust_frame, text="🎲", width=3,
+                   command=self.randomize_seed).grid(row=1, column=2, padx=(2, 0), pady=(5, 0))
+
         # Project + Buttons
         ttk.Label(output_panel, text="Proj:").pack(anchor="w")
         self.project_var = tk.StringVar(value="Hiro_Main")
@@ -628,6 +692,11 @@ class USTGeneratorApp:
         preview_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
+
+    def randomize_seed(self):
+        new_seed = random.randint(0, 2 ** 31 - 1)
+        self.seed_var.set(str(new_seed))
+        self.status_var.set(f"🎲 New seed: {new_seed}")
 
     def _get_envelope_preset(self, preset_name):
         return ENVELOPE_PRESETS.get(preset_name, HiroConfig.DEFAULT_ENVELOPE)
