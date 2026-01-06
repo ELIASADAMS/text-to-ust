@@ -12,10 +12,9 @@ from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
+#   FIRST CLASS
 class HiroUSTGenerator:
     _instance = None
 
@@ -414,7 +413,7 @@ def get_random_note(root_midi, scale_name, intone_level="Tight (1)", flat_mode=F
 class USTGeneratorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hiro UST v4.1")
+        self.root.title("Hiro UST v4.2 dev")
         self.root.geometry("900x800")
         self.root.minsize(850, 850)
 
@@ -602,6 +601,14 @@ class USTGeneratorApp:
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
+        # LOG
+        try:
+            from logger import TesterLogger
+            self.logger = TesterLogger(self)
+            self.logger.setup()
+        except:
+            print("No logger")
+
     def _get_envelope_preset(self, preset_name):
         presets = {
             "Pop": "0,10,35,0,100,100,0",
@@ -677,6 +684,10 @@ class USTGeneratorApp:
 
             parts, elements = parse_song_structure(lyrics)
             self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
+            phonemes_only = [e for e in elements if not e.startswith('PAUSE')]
+            self.logger.log_phonemes(phonemes_only)
+            self.logger.log_sections(parts)
+
 
             root_key = KEY_ROOTS[self.voice_var.get()]
             ust_content = text_to_ust(
@@ -705,6 +716,7 @@ class USTGeneratorApp:
         """Generate + Auto-save NEXT TO EXE"""
         ust_content = self._generate_content()
         if not ust_content:
+            self.logger.show_stats()
             return
 
         # Save NEXT TO EXE
