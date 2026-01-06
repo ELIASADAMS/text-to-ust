@@ -54,16 +54,29 @@ class HiroUSTGenerator:
         while i < len(text):
             node = self.mora_trie
             start = i
+            best_match = None
+            best_end = i
 
             while i < len(text) and text[i] in node:
                 node = node[text[i]]
                 i += 1
-                if 'end' in node and node['end']:
-                    phonemes.extend(node['phones'])
-                    break
 
-            if i == start:
-                i += 1
+                if 'end' in node and node['end']:
+                    best_match = node
+                    best_end = i
+
+            if best_match and best_match['end']:
+                phonemes.extend(best_match['phones'])
+                i = best_end
+            else:
+                char = text[start]
+                if char == 'っ':  # Sokuon - gemination
+                    phonemes.append('っ')
+                    i = start + 1
+                else:
+                    # Unknown character - skip or log warning
+                    logger.warning(f"Unknown char '{char}' at position {start}")
+                    i = start + 1
 
         return phonemes
 
@@ -351,9 +364,9 @@ Mode2=True
         else:
             romaji_phoneme = element
             if romaji_phoneme == 'っ':
-                note_length = 60  # Very short rest for gemination
-                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=R\nNoteNum={int(root_key)}\n'
-                ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=0\n'
+                note_length = 60
+                ust += f'\n[#{note_id:04d}]\nLength={note_length}\nLyric=っ\nNoteNum={int(root_key)}\n'
+                ust += f'PreUtterance=0\nVoiceOverlap=0\nIntensity=30\n'
                 ust += f'Modulation=0\nPBS=0\nPBW=0\nStartPoint=0\nEnvelope=0,0,0,0,0,0,0\n'
                 note_id += 1
                 continue
