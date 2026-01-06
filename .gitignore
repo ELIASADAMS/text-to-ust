@@ -10,3 +10,4 @@ hiro_tester.log
 /archive
 /build_opt
 /archive
+*.spec
