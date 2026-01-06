@@ -1,4 +1,3 @@
-import logging
 import os
 import random
 import sys
@@ -12,8 +11,6 @@ from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
-
-logger = logging.getLogger(__name__)
 
 
 #   FIRST CLASS
@@ -439,11 +436,8 @@ class USTGeneratorApp:
                 icon_path = os.path.join(sys._MEIPASS, 'hibiki.ico')
             else:
                 icon_path = 'hibiki.ico'
-
-            self.root.iconbitmap(icon_path)
-            logger.info(f"Logo loaded: {icon_path}")
         except:
-            logger.warning("hibiki.ico not found - using default")
+            pass
 
         # =============== MAIN LYRICS ===============
         input_frame = ttk.LabelFrame(root, text="🎵 Song Lyrics (Romaji/Hiragana)", padding=12)
@@ -610,20 +604,21 @@ class USTGeneratorApp:
         status_frame = ttk.Frame(root)
         status_frame.pack(fill="x", padx=15, pady=(0, 10))
         self.status_var = tk.StringVar(value="✅ Ready - All controls visible!")
-        ttk.Label(status_frame, textvariable=self.status_var, relief="sunken", anchor="w").pack(fill="x")
+        status_entry = tk.Entry(
+            status_frame,
+            textvariable=self.status_var,
+            state="readonly",
+            font=("Consolas", 9),
+            relief="sunken",
+            bd=1,
+            bg="white"
+        )
+        status_entry.pack(fill="x", ipady=4)
 
         preview_frame = ttk.LabelFrame(root, text="👀 Preview", padding=8)
         preview_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
-
-        # LOG
-        try:
-            from logger import TesterLogger
-            self.logger = TesterLogger(self)
-            self.logger.setup()
-        except:
-            print("No logger")
 
     def _get_envelope_preset(self, preset_name):
         presets = {
@@ -701,8 +696,6 @@ class USTGeneratorApp:
             parts, elements = parse_song_structure(lyrics)
             self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
             phonemes_only = [e for e in elements if not e.startswith('PAUSE')]
-            self.logger.log_phonemes(phonemes_only)
-            self.logger.log_sections(parts)
 
             root_key = KEY_ROOTS[self.voice_var.get()]
             ust_content = text_to_ust(
@@ -724,14 +717,10 @@ class USTGeneratorApp:
             self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
 
-            logger.info(f"Generated UST with seed={self.seed_var.get()}, {len(elements)} phonemes")
-            return ust_content
-
     def generate_ust(self):
         """Generate + Auto-save NEXT TO EXE"""
         ust_content = self._generate_content()
         if not ust_content:
-            self.logger.show_stats()
             return
 
         # Save NEXT TO EXE
