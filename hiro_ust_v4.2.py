@@ -527,14 +527,16 @@ class USTGeneratorApp:
         tempo_frame = ttk.Frame(timing_panel)
         tempo_frame.pack(fill="x", pady=(0, 8))
         self.tempo_var = tk.StringVar(value="120.00")
-        ttk.Entry(tempo_frame, textvariable=self.tempo_var, width=12).pack(side="left")
+        ttk.Entry(tempo_frame,
+                  textvariable=self.tempo_var, width=12).pack(side="left")
         ttk.Label(tempo_frame, text="ticks/note", font=("TkDefaultFont", 8)).pack(side="right")
 
         ttk.Label(timing_panel, text="Base Length:").pack(anchor="w")
         base_frame = ttk.Frame(timing_panel)
         base_frame.pack(fill="x", pady=(0, 8))
         self.length_var = tk.StringVar(value="240")
-        ttk.Entry(base_frame, textvariable=self.length_var, width=12).pack(side="left")
+        ttk.Entry(base_frame,
+                  textvariable=self.length_var, width=12).pack(side="left")
         ttk.Label(base_frame, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         pause_frame = ttk.Frame(timing_panel)
@@ -545,14 +547,16 @@ class USTGeneratorApp:
 
         ttk.Label(line_row, text="Line:").pack(side="left")
         self.line_pause_var = tk.StringVar(value="960")
-        ttk.Entry(line_row, textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Entry(line_row,
+                  textvariable=self.line_pause_var, width=10).pack(side="left", padx=(5, 15))
         ttk.Label(line_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         sect_row = ttk.Frame(pause_frame)
         sect_row.pack(fill="x")
         ttk.Label(sect_row, text="Sect:").pack(side="left")
         self.section_pause_var = tk.StringVar(value="1920")
-        ttk.Entry(sect_row, textvariable=self.section_pause_var, width=10).pack(side="left", padx=(5, 15))
+        ttk.Entry(sect_row,
+                  textvariable=self.section_pause_var, width=10).pack(side="left", padx=(5, 15))
         ttk.Label(sect_row, text="ticks", font=("TkDefaultFont", 8)).pack(side="right")
 
         # Panel 2: Voice & Length (Left-Center)
@@ -560,12 +564,14 @@ class USTGeneratorApp:
         voice_panel.pack(side="left", fill="both", expand=True, padx=(0, 8))
 
         ttk.Label(voice_panel, text="Voice:").pack(anchor="w")
-        self.voice_var = ttk.Combobox(voice_panel, values=list(KEY_ROOTS.keys()), state="readonly", width=15)
+        self.voice_var = ttk.Combobox(voice_panel,
+                                      values=list(KEY_ROOTS.keys()), state="readonly", width=15)
         self.voice_var.set("Alto")
         self.voice_var.pack(fill="x", pady=(0, 8))
 
         ttk.Label(voice_panel, text="Scale:").pack(anchor="w")
-        self.scale_var = ttk.Combobox(voice_panel, values=list(SCALES.keys()), state="readonly", width=15)
+        self.scale_var = ttk.Combobox(voice_panel,
+                                      values=list(SCALES.keys()), state="readonly", width=15)
         self.scale_var.set("Major Pentatonic")
         self.scale_var.pack(fill="x", pady=(0, 8))
 
@@ -573,32 +579,40 @@ class USTGeneratorApp:
         length_frame.pack(fill="x")
         ttk.Label(length_frame, text="Len Var:").pack(side="left")
         self.length_var_ctrl = tk.StringVar(value="0.3")
-        ttk.Entry(length_frame, textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=(5, 15))
+        ttk.Entry(length_frame,
+                  textvariable=self.length_var_ctrl, width=8).pack(side="left", padx=(5, 15))
         ttk.Label(length_frame, text="Stretch:").pack(side="left")
         self.stretch_var = tk.StringVar(value="0.25")
-        ttk.Entry(length_frame, textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
+        ttk.Entry(length_frame,
+                  textvariable=self.stretch_var, width=8).pack(side="left", padx=5)
 
         # Panel 3: Melody Modes (Center)
         melody_panel = ttk.LabelFrame(controls_main, text="🎵 Melody Modes", padding=10)
         melody_panel.pack(side="left", fill="y", padx=(0, 8))
 
         self.motif_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(melody_panel, text="🎼 Motif Memory", variable=self.motif_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎼 Motif Memory",
+                        variable=self.motif_var).pack(anchor="w", pady=2)
 
         self.lyrical_mode_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(melody_panel, text="🎭 Lyrical Mode", variable=self.lyrical_mode_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎭 Lyrical Mode",
+                        variable=self.lyrical_mode_var).pack(anchor="w", pady=2)
 
         self.flat_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="🎹 Monotone (Flat)", variable=self.flat_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎹 Monotone (Flat)",
+                        variable=self.flat_var).pack(anchor="w", pady=2)
 
         self.quartertone_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)", variable=self.quartertone_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="♯ Microtones (Qt)",
+                        variable=self.quartertone_var).pack(anchor="w", pady=2)
 
         self.chord_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(melody_panel, text="🎸 I-IV-V Chords", variable=self.chord_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(melody_panel, text="🎸 I-IV-V Chords",
+                        variable=self.chord_var).pack(anchor="w", pady=2)
 
         ttk.Label(melody_panel, text="Intone:").pack(anchor="w", pady=(8, 0))
-        self.intone_var = ttk.Combobox(melody_panel, values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
+        self.intone_var = ttk.Combobox(melody_panel,
+                                       values=["Tight (1)", "Medium (2)", "Wide (3)", "Wild (5)"],
                                        state="readonly", width=15)
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
@@ -607,12 +621,12 @@ class USTGeneratorApp:
         ttk.Label(melody_panel, text="Curve:").pack(anchor="w")
         self.contour_var = tk.StringVar(value="0")
         ttk.Scale(melody_panel, from_=-50, to=50, orient="horizontal",
-                  variable=self.contour_var, length=100).pack(fill="x", pady=(0, 2))  # ← 100px
+                  variable=self.contour_var, length=100).pack(fill="x", pady=(0, 2))
 
         ttk.Label(melody_panel, text="Range:").pack(anchor="w")
         self.range_var = tk.StringVar(value="70")
         ttk.Scale(melody_panel, from_=40, to=120, orient="horizontal",
-                  variable=self.range_var, length=100).pack(fill="x", pady=(0, 8))  # ← 100px
+                  variable=self.range_var, length=100).pack(fill="x", pady=(0, 8))
 
         # Panel 4: UST + Output (COMBINED)
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
@@ -625,28 +639,33 @@ class USTGeneratorApp:
         # Pre + Ovl
         ttk.Label(ust_frame, text="P:").grid(row=0, column=0, sticky="w")
         self.pre_utter_var = tk.StringVar(value="25")
-        ttk.Entry(ust_frame, textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.pre_utter_var, width=4).grid(row=0, column=1, padx=1)
 
         ttk.Label(ust_frame, text="O:").grid(row=0, column=2, sticky="w")
         self.voice_overlap_var = tk.StringVar(value="10")
-        ttk.Entry(ust_frame, textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.voice_overlap_var, width=4).grid(row=0, column=3, padx=1)
 
         # Int + Env
         ttk.Label(ust_frame, text="I:").grid(row=0, column=4, sticky="w")
         self.intensity_base_var = tk.StringVar(value="80")
-        ttk.Entry(ust_frame, textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.intensity_base_var, width=4).grid(row=0, column=5, padx=1)
 
         ttk.Label(ust_frame, text="E:").grid(row=0, column=6, sticky="w")
         self.envelope_var = tk.StringVar(value="Pop")
         env_presets = ["Pop", "Rock", "Breathy", "Sharp", "Opera", "Whisper", "Belt", "Falsetto", "Growl", "Vibrato"]
-        self.env_combo = ttk.Combobox(ust_frame, textvariable=self.envelope_var,
+        self.env_combo = ttk.Combobox(ust_frame,
+                                      textvariable=self.envelope_var,
                                       values=env_presets, state="readonly", width=6)
         self.env_combo.grid(row=0, column=7, padx=1)
 
         # SEED CONTROL
         ttk.Label(ust_frame, text="S:").grid(row=1, column=0, sticky="w", pady=(5, 0))
         self.seed_var = tk.StringVar(value="1234")
-        ttk.Entry(ust_frame, textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
+        ttk.Entry(ust_frame,
+                  textvariable=self.seed_var, width=8).grid(row=1, column=1, padx=1)
 
         # Randomize seed button
         ttk.Button(ust_frame, text="🎲", width=3,
@@ -655,17 +674,24 @@ class USTGeneratorApp:
         # Project + Buttons
         ttk.Label(output_panel, text="Proj:").pack(anchor="w")
         self.project_var = tk.StringVar(value="Hiro_Main")
-        ttk.Entry(output_panel, textvariable=self.project_var).pack(fill="x", pady=(0, 6))
+        ttk.Entry(output_panel,
+                  textvariable=self.project_var).pack(fill="x", pady=(0, 6))
 
         btn_frame = ttk.Frame(output_panel)
         btn_frame.pack(fill="x")
-        ttk.Button(btn_frame, text="🎵 Gen", command=self.generate_ust).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="💾 Save", command=self.save_ust_only).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="🧹 Clear", command=self.clear).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="🎵 Gen",
+                   command=self.generate_ust).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="💾 Save",
+                   command=self.save_ust_only).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📋 Prev",
+                   command=self.preview_phonemes).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="🧹 Clear",
+                   command=self.clear).pack(fill="x", pady=1)
 
-        ttk.Button(btn_frame, text="💾 Preset", command=self.save_preset).pack(fill="x", pady=1)
-        ttk.Button(btn_frame, text="📂 Load", command=self.load_preset).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="💾 Preset",
+                   command=self.save_preset).pack(fill="x", pady=1)
+        ttk.Button(btn_frame, text="📂 Load",
+                   command=self.load_preset).pack(fill="x", pady=1)
 
         # Status + Preview
         status_frame = ttk.Frame(root)
