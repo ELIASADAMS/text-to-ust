@@ -1,14 +1,15 @@
-
 # 響 Hiro UST
 
-**Procedural UTAU `.ust` generator** for Japanese lyrics with mora-accurate parsing, motif memory, voice leading, and musical scales.
+**Procedural UTAU `.ust` generator** for Japanese lyrics with mora-accurate parsing, motif memory, voice leading, and
+musical scales.
 Built by Ilya Minin (Eli) - interactive installations & generative audio specialist.
 
 ## 🎛️ Purpose
 
 Converts Romaji/Hiragana lyrics → UST files with **procedural melodies** that respect:
+
 - Japanese phonetics (mora boundaries, gemination `っ`, yoon)
-- Musical structure (phrase endings, motif repetition) 
+- Musical structure (phrase endings, motif repetition)
 - Voice ranges (Soprano→Bass)
 
 ## 🎵 Usage
@@ -27,15 +28,18 @@ Converts Romaji/Hiragana lyrics → UST files with **procedural melodies** that 
 ## ✨ Core Mechanics
 
 ### **1. Mora Trie Parser**
+
 ```
 Romaji → Hiragana → Phonemes (O(1) lookup)
 っか → ['っ','ka'], きゃ → ['kya']
 ```
+
 - Small tsu gemination (`っ`)
 - Full yoon support (`kya`, `sha`, `nya`)
 - Vowel/consonant timing differentiation
 
 ### **2. Procedural Melody Engine**
+
 ```
 Voice Leading: Tight(±1) → Wild(±5) semitones
 Motif Memory: Learns/reuses 4-note patterns (40% prob)
@@ -44,6 +48,7 @@ Chord Awareness: I-IV-V progression cycle
 ```
 
 ### **3. 20+ Scales**
+
 ```
 - Major/Minor Pentatonic (Japanese traditional)
 - Diatonic majors/minors (C→A)
@@ -54,12 +59,14 @@ Chord Awareness: I-IV-V progression cycle
 ## 🚀 Get Started
 
 **EXE (Recommended)**
+
 ```bash
 # Download from Releases
 HiroUST_v4.1.exe → Double-click → Generate UST
 ```
 
 **Python**
+
 ```bash
 pip install tkinter  # Usually pre-installed
 python hiro_ust.py
@@ -67,17 +74,17 @@ python hiro_ust.py
 
 ## 🎚️ Controls
 
-| Section | Parameters | Effect |
-|---------|------------|--------|
-| **⏱️ Timing** | Tempo, Base Length, Line/Section Pauses | Song structure |
-| **🎤 Voice** | Soprano(67)-Bass(48), Scale | Pitch range + palette |
-| **🎵 Behavior** | Motif Memory, Lyrical Mode, Microtones, Chords | Melodic character |
-| **⚙️ UST** | PreUtterance, Overlap, Intensity, Envelope | Rendering quality |
+| Section         | Parameters                                     | Effect                |
+|-----------------|------------------------------------------------|-----------------------|
+| **⏱️ Timing**   | Tempo, Base Length, Line/Section Pauses        | Song structure        |
+| **🎤 Voice**    | Soprano(67)-Bass(48), Scale                    | Pitch range + palette |
+| **🎵 Behavior** | Motif Memory, Lyrical Mode, Microtones, Chords | Melodic character     |
+| **⚙️ UST**      | PreUtterance, Overlap, Intensity, Envelope     | Rendering quality     |
 
 ## 🎼 Modes
 
 - **🎼 Motif Memory** - Remembers + varies 4-note patterns
-- **🎭 Lyrical** - Vowels ↑ high, Consonants ↓ low  
+- **🎭 Lyrical** - Vowels ↑ high, Consonants ↓ low
 - **♯ Microtones** - Quarter-tone vowel bends
 - **🎸 Chords** - I(0-2), IV(3-4), V(5-7) beat cycle
 - **📏 Intone** - Tight(1)→Wild(5) leap control
@@ -85,6 +92,7 @@ python hiro_ust.py
 ## 💾 Presets
 
 Save/load complete configurations:
+
 ```
 Pop_Idol.json, Horror_Ambient.json, Experimental.json
 ```
