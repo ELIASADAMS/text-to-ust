@@ -9,9 +9,16 @@ from config import HiroConfig
 from constants import VOWEL_CHARS, CONSONANT_CHARS
 from envelopes import ENVELOPE_PRESETS
 from hiragana_map import HIRAGANA_MAP
+from intone_utils import get_intone_settings
 from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
+from presets import (
+    build_preset_from_app,
+    apply_preset_to_app,
+    save_preset_to_file,
+    load_preset_from_file,
+)
 from scales import SCALES
 from ust_strings import (
     UST_HEADER_TEMPLATE,
@@ -283,7 +290,7 @@ class MelodyBrain:
                        contour_bias=0, pitch_range=70):
         scale = SCALES[scale_name]
         self.phrase_len += 1
-        settings = self._get_intone_settings(intone_level)
+        settings = get_intone_settings(intone_level)
 
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
@@ -342,14 +349,6 @@ class MelodyBrain:
             self.last_note = 5
 
         return root_midi + self.last_note
-
-    def _get_intone_settings(self, intone_level):
-        return {
-            "Tight (1)": {"leap": 1, "phrase": 6},
-            "Medium (2)": {"leap": 2, "phrase": 8},
-            "Wide (3)": {"leap": 3, "phrase": 10},
-            "Wild (5)": {"leap": 5, "phrase": 12}
-        }.get(intone_level, {"leap": 1, "phrase": 6})
 
     def get_intensity(self, note_height, phrase_progress):
         base = 80 + int(abs(note_height - 5) * 8)
@@ -871,36 +870,18 @@ class USTGeneratorApp:
         self.status_var.set("🧹 Lyrics cleared ✓")
 
     def save_preset(self):
-        preset = {
-            'tempo': self.tempo_var.get(),
-            'length': self.length_var.get(),
-            'voice': self.voice_var.get(),
-            'scale': self.scale_var.get(),
-            'intone': self.intone_var.get(),
-            'length_var': self.length_var_ctrl.get(),
-            'stretch': self.stretch_var.get(),
-            'pre_utterance': self.pre_utter_var.get(),
-            'voice_overlap': self.voice_overlap_var.get(),
-            'intensity': self.intensity_base_var.get(),
-            'motif': self.motif_var.get(),
-            'lyrical': self.lyrical_mode_var.get(),
-            'flat': self.flat_var.get(),
-            'quartertone': self.quartertone_var.get(),
-            'project': self.project_var.get(),
-            'line_pause': self.line_pause_var.get(),
-            'section_pause': self.section_pause_var.get(),
-            'envelope': self.envelope_var.get()
-        }
+        preset = build_preset_from_app(self)
         filename = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("JSON Preset", "*.json")],
             initialfile=f"{self.project_var.get()}_preset.json"
         )
         if filename:
-            import json
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(preset, f, indent=2, ensure_ascii=False)
-            self.status_var.set(f"✅ Preset saved: {os.path.basename(filename)}")
+            try:
+                save_preset_to_file(preset, filename)
+                self.status_var.set(f"✅ Preset saved: {os.path.basename(filename)}")
+            except Exception as e:
+                self.status_var.set(f"❌ Preset save failed: {str(e)[:50]}")
 
     def load_preset(self):
         filename = filedialog.askopenfilename(
@@ -909,46 +890,10 @@ class USTGeneratorApp:
         )
         if not filename:
             return
-
         try:
-            import json
-            with open(filename, 'r', encoding='utf-8') as f:
-                preset = json.load(f)
-
-            # Set ALL controls
-            var_map = {
-                'tempo': self.tempo_var,
-                'length': self.length_var,
-                'voice': self.voice_var,
-                'scale': self.scale_var,
-                'intone': self.intone_var,
-                'length_var': self.length_var_ctrl,
-                'stretch': self.stretch_var,
-                'pre_utterance': self.pre_utter_var,
-                'voice_overlap': self.voice_overlap_var,
-                'intensity': self.intensity_base_var,
-                'project': self.project_var,
-                'line_pause': self.line_pause_var,
-                'section_pause': self.section_pause_var,
-                'envelope': self.envelope_var
-            }
-
-            for key, var in var_map.items():
-                if key in preset:
-                    var.set(str(preset[key]))
-
-            # Boolean checkboxes
-            for checkbox, key in [
-                (self.motif_var, 'motif'),
-                (self.lyrical_mode_var, 'lyrical'),
-                (self.flat_var, 'flat'),
-                (self.quartertone_var, 'quartertone')
-            ]:
-                if key in preset:
-                    checkbox.set(bool(preset[key]))
-
+            preset = load_preset_from_file(filename)
+            apply_preset_to_app(self, preset)
             self.status_var.set(f"✅ Loaded: {os.path.basename(filename)}")
-
         except Exception as e:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
 
