@@ -4,15 +4,16 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
+from config import HiroConfig
 # IMPORT DATA MODULES
 from constants import VOWEL_CHARS, CONSONANT_CHARS
+from envelopes import ENVELOPE_PRESETS
 from hiragana_map import HIRAGANA_MAP
 from kana_to_hiragana import convert_lyrics
 from key_roots import KEY_ROOTS
 from mora_trie_data import MORA_DATA
 from scales import SCALES
-from config import HiroConfig
-from envelopes import ENVELOPE_PRESETS
+
 
 #   FIRST CLASS
 class HiroUSTGenerator:
@@ -318,6 +319,7 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
     length = int(base_length * factor * length_factor)
     return max(HiroConfig.MIN_NOTE_LEN,
                min(HiroConfig.MAX_NOTE_LEN, length))
+
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
                 intone_level, length_var, stretch_prob, melody_brain,
