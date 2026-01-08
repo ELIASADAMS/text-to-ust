@@ -11,3 +11,4 @@ hiro_tester.log
 /build_opt
 /archive
 *.spec
+.DS_Store
