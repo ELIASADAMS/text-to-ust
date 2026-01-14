@@ -284,10 +284,32 @@ class MelodyBrain:
         self.motif_memory = MotifMemory(motif_length=4)
         self.VOWEL_CHARS = VOWEL_CHARS
         self.CONSONANT_CHARS = CONSONANT_CHARS
+        # Pitch accent attributes
+        self.word_morae = []
+        self.word_pos = 0
+        self.pitch_drop_pos = 0
+        self.is_high_pitch = False
+        self.prev_high_pitch = False  # Track for drops
+
+    def set_accent_pattern(self, pattern, word_length):
+        self.word_morae = list(range(word_length))
+        self.word_pos = 0
+        if pattern == "Heiban":
+            self.pitch_drop_pos = 999
+            self.is_high_pitch = True
+        elif pattern == "Atamadaka":
+            self.pitch_drop_pos = 1
+            self.is_high_pitch = True
+        elif pattern == "Nakadaka":
+            self.pitch_drop_pos = max(2, word_length // 2)
+            self.is_high_pitch = True
+        elif pattern == "Odaka":
+            self.pitch_drop_pos = 999
+            self.is_high_pitch = False
 
     def get_smart_note(self, root_midi, scale_name, phoneme, intone_level="Tight (1)",
                        flat_mode=False, quarter_tone=False, use_motifs=True, chord_mode=False,
-                       contour_bias=0, pitch_range=70):
+                       contour_bias=0, pitch_range=70, accent="None"):
         scale = SCALES[scale_name]
         self.phrase_len += 1
         settings = get_intone_settings(intone_level)
@@ -295,23 +317,17 @@ class MelodyBrain:
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
 
-        # CONTOUR CONTROL (NEW!)
+        # CONTOUR FIRST (move up)
         phrase_pos = (self.phrase_len - 1) / max(12, settings["phrase"])
-        contour_curve = contour_bias / 100.0  # -0.5 to +0.5
+        contour_curve = contour_bias / 100.0
         contour_target = (phrase_pos + contour_curve * phrase_pos * (1 - phrase_pos)) * pitch_range
 
-        # Store recent notes for motif detection
-        self.recent_notes.append(self.last_note)
-        if len(self.recent_notes) > 8:
-            self.recent_notes.pop(0)
-            self.motif_memory.add_motif(self.recent_notes)
-
-        # PHRASE ENDINGS + CONTOUR
+        # BASE TARGET NOTE (before accent)
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
             self.last_note = min(max(0, int(contour_target * 0.8)), 11)
-            self.phrase_len = 1
             target_note = self.last_note
+            self.phrase_len = 1
         else:
             if use_motifs:
                 motif_note = self.motif_memory.get_motif_note(self.last_note, scale)
@@ -327,16 +343,37 @@ class MelodyBrain:
                     if settings["leap"] > 2: cons_notes.extend([9, 11])
                     target_note = random.choice(cons_notes) + contour_target * 0.1
 
-            # CHORD PROGRESSION
             if chord_mode:
                 beat_pos = (self.phrase_len - 1) % 8
-                chord_root = {0: 0, 3: 5, 5: 7}.get(beat_pos // 3 % 3, 0)  # I-IV-V cycle
+                chord_root = {0: 0, 3: 5, 5: 7}.get(beat_pos // 3 % 3, 0)
                 chord_tones = [(chord_root + i) % 12 for i in [0, 4, 7]]
                 chord_tones = [n for n in chord_tones if n in scale]
                 if chord_tones:
                     target_note = min(chord_tones, key=lambda x: abs(x - target_note))
 
-        # Voice leading + snap to scale
+        # APPLY ACCENT BLEND (now target_note exists)
+        if accent != "None":
+            accent_factor = 1.5
+            if self.is_high_pitch:
+                accent_note = target_note + accent_factor
+            else:
+                accent_note = target_note - accent_factor
+            target_note = target_note * 0.7 + accent_note * 0.3
+
+        self.word_pos += 1
+        if self.word_pos >= self.pitch_drop_pos:
+            self.is_high_pitch = False
+        if phoneme in '。！？。,' or self.word_pos >= len(self.word_morae):
+            self.word_pos = 0
+            self.is_high_pitch = False
+
+        # Store recent notes AFTER accent
+        self.recent_notes.append(self.last_note)
+        if len(self.recent_notes) > 8:
+            self.recent_notes.pop(0)
+            self.motif_memory.add_motif(self.recent_notes)
+
+        # Voice leading + snap
         max_leap = settings["leap"]
         motion = max(-max_leap, min(max_leap, target_note - self.last_note))
         new_note = self.last_note + motion
@@ -347,6 +384,8 @@ class MelodyBrain:
             self.last_note += random.choice([0, 0.5, -0.5])
         if flat_mode:
             self.last_note = 5
+
+        self.prev_high_pitch = self.is_high_pitch
 
         return root_midi + self.last_note
 
@@ -389,11 +428,14 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 intone_level, length_var, stretch_prob, melody_brain,
                 pre_utterance=25, voice_overlap=10, intensity_base=80, envelope="0,10,35,0,100,100,0",
                 flat_mode=False, quartertone_mode=False, lyrical_mode=True, use_motifs=True, chord_mode=False,
-                contour_bias=0, pitch_range=70):
+                contour_bias=0, pitch_range=70, accent="None"):
     generator = HiroUSTGenerator()
     writer = USTWriter(project_name=project_name, tempo=tempo)
 
     for element in text_elements:
+        if accent != "None":
+            word_phonemes = []
+            word_start = True
         if element.startswith("PAUSE_LINE:"):
             melody_brain.phrase_len = 0
             melody_brain.recent_notes.clear()
@@ -420,6 +462,17 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
             continue
 
         hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
+        # WORD BOUNDARY DETECTION + ACCENT SETUP
+        if accent != "None" and romaji_phoneme not in ['っ', '+']:
+            if word_start or romaji_phoneme in [' ', '　', '、', '，']:
+                if word_phonemes:
+                    word_length = len(word_phonemes)
+                    melody_brain.set_accent_pattern(accent, max(2, word_length))
+                word_phonemes = []
+                word_start = False
+            word_phonemes.append(romaji_phoneme)
+        else:
+            word_start = True  # Pauses/spacing reset
         stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
         for stretch_phoneme, length_factor in stretch_notes:
@@ -431,7 +484,7 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 note_num = melody_brain.get_smart_note(
                     root_key, scale, stretch_phoneme, intone_level,
                     flat_mode, quartertone_mode, use_motifs, chord_mode,
-                    contour_bias, pitch_range
+                    contour_bias, pitch_range, accent=accent
                 )
             else:
                 note_num = get_random_note(
@@ -440,13 +493,28 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                     quarter_tone=quartertone_mode
                 )
 
-            # QUARTER-TONE handling
+            # QUARTERTONE + ACCENT PBS
             pbs = 0
             pbw = 0
             if quartertone_mode and note_num != int(note_num):
                 fraction = note_num - int(note_num)
                 pbs = int(fraction * 50)
                 pbw = 10
+            elif accent != "None":
+                # FORCE VISIBLE ACCENT DROPS
+                if (hasattr(melody_brain, 'is_high_pitch') and
+                        melody_brain.word_pos > 0 and
+                        not melody_brain.is_high_pitch and
+                        melody_brain.prev_high_pitch):
+
+                    # SHARP JAPANESE ACCENT DROP (-3 to -5 semitones)
+                    pbs = random.choice([-80, -70, -60, -50])  # Very visible!
+                    pbw = random.randint(15, 30)  # Wider bend = smoother drop
+
+                    # RARE RISE for Odaka pattern
+                    if accent == "Odaka" and melody_brain.word_pos == 2:
+                        pbs = random.choice([40, 50, 60])
+                        pbw = 25
 
             phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
             last_note_safe = getattr(melody_brain, 'last_note', 0)
@@ -617,6 +685,13 @@ class USTGeneratorApp:
         self.intone_var.set("Medium (2)")
         self.intone_var.pack(fill="x")
 
+        # ACCENT
+        ttk.Label(melody_panel, text="Accent:").pack(anchor="w")
+        self.accent_var = ttk.Combobox(melody_panel, values=["None", "Heiban", "Atamadaka", "Nakadaka", "Odaka"],
+                                       state="readonly", width=15)
+        self.accent_var.set("None")
+        self.accent_var.pack(fill="x", pady=(0, 8))
+
         # CONTOUR CONTROLS
         ttk.Label(melody_panel, text="Curve:").pack(anchor="w")
         self.contour_var = tk.StringVar(value="0")
@@ -713,6 +788,22 @@ class USTGeneratorApp:
         self.preview_text = scrolledtext.ScrolledText(preview_frame, height=6, state="disabled", font=("Consolas", 9))
         self.preview_text.pack(fill="both", expand=True)
 
+    def set_accent_pattern(self, pattern, word_length):
+        self.word_morae = list(range(word_length))
+        self.word_pos = 0
+        if pattern == "Heiban":
+            self.pitch_drop_pos = 999
+            self.is_high_pitch = True
+        elif pattern == "Atamadaka":
+            self.pitch_drop_pos = 1
+            self.is_high_pitch = True
+        elif pattern == "Nakadaka":
+            self.pitch_drop_pos = max(2, word_length // 2)
+            self.is_high_pitch = True
+        elif pattern == "Odaka":
+            self.pitch_drop_pos = 999
+            self.is_high_pitch = False
+
     def randomize_seed(self):
         new_seed = random.randint(0, 2 ** 31 - 1)
         self.seed_var.set(str(new_seed))
@@ -796,7 +887,8 @@ class USTGeneratorApp:
                 self.lyrical_mode_var.get(), self.motif_var.get(),
                 self.chord_var.get(),
                 contour_bias=float(self.contour_var.get()),
-                pitch_range=float(self.range_var.get())
+                pitch_range=float(self.range_var.get()),
+                accent=self.accent_var.get()
             )
             return ust_content
         except Exception as e:
@@ -828,6 +920,8 @@ class USTGeneratorApp:
             self.preview_text.config(state="disabled")
         except Exception as e:
             self.status_var.set(f"❌ Save failed: {str(e)}")
+
+        accent = self.accent_var.get()
 
     def save_ust_only(self):
         ust_content = self._generate_content()
