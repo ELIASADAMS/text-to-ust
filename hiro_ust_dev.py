@@ -65,19 +65,20 @@ class USTWriter:
         self.note_id += 1
 
     def add_note(self, length, lyric, note_num, pre_utter, voice_overlap,
-                 intensity, envelope, pbs=0, pbw=0):
+                 intensity, envelope, pbs=0, pbw=0, flags=""):
         self.lines.append(
             NOTE_BLOCK_TEMPLATE.format(
                 note_id=self.note_id,
                 length=length,
                 lyric=lyric,
-                pbs=pbs,
-                pbw=pbw,
                 note_num=int(round(note_num)),
                 pre_utter=pre_utter,
                 voice_overlap=voice_overlap,
                 intensity=intensity,
-                envelope=envelope
+                envelope=envelope,
+                pbs=pbs,
+                pbw=pbw,
+                flags=flags
             )
         )
         self.note_id += 1
@@ -475,6 +476,10 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
             word_start = True  # Pauses/spacing reset
         stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
+        if accent != "None" and len(word_phonemes) == 1:  # FIRST MORA OF WORD
+            estimated_word_length = min(6, max(2, len([p for p in text_elements if p == romaji_phoneme])))
+            melody_brain.set_accent_pattern(accent, estimated_word_length)
+
         for stretch_phoneme, length_factor in stretch_notes:
             note_length = get_note_length(
                 stretch_phoneme, base_length, length_var, length_factor, melody_brain
@@ -494,33 +499,46 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 )
 
             # QUARTERTONE + ACCENT PBS
-            pbs = 0
-            pbw = 0
+            pbs = "0;0"
+            pbw = "0"
+            pby = "0"
+            pbm = ","
+
             if quartertone_mode and note_num != int(note_num):
                 fraction = note_num - int(note_num)
-                pbs = int(fraction * 50)
-                pbw = 10
-            elif accent != "None":
-                # FORCE VISIBLE ACCENT DROPS
-                if (hasattr(melody_brain, 'is_high_pitch') and
-                        melody_brain.word_pos > 0 and
-                        not melody_brain.is_high_pitch and
-                        melody_brain.prev_high_pitch):
+                bend_amount = int(fraction * 50)
+                pbs = f"0;{bend_amount}"
+                pbw = "10"
+            elif accent != "None" and hasattr(melody_brain, 'is_high_pitch'):
 
-                    # SHARP JAPANESE ACCENT DROP (-3 to -5 semitones)
-                    pbs = random.choice([-80, -70, -60, -50])  # Very visible!
-                    pbw = random.randint(15, 30)  # Wider bend = smoother drop
+                if not melody_brain.is_high_pitch and melody_brain.prev_high_pitch:
+                    # SHARP ACCENT DROP (like 0002: PBS=0;-40)
+                    drop_strength = random.choice([-50, -40, -35, -30, -25])
+                    pbs = f"0;{drop_strength}"
+                    pbw = "0"
 
-                    # RARE RISE for Odaka pattern
-                    if accent == "Odaka" and melody_brain.word_pos == 2:
-                        pbs = random.choice([40, 50, 60])
-                        pbw = 25
+                    # Add PBW curve for longer notes (like 0003)
+                    if note_length > 200:
+                        pbw = f"25,50,{int(note_length * 0.15)}"
+                        pby = f"-15,-15,0"
+
+                elif accent == "Odaka" and melody_brain.word_pos == 2:
+                    # RISE for Odaka pattern
+                    pbs = f"0;{random.choice([25, 35, 45])}"
+                    pbw = "20"
+
+                elif melody_brain.word_pos == 1 and melody_brain.is_high_pitch:
+                    # GENTLE HIGH ENTRY
+                    pbs = f"0;{random.choice([15, 20])}"
+                    pbw = "0"
 
             phrase_progress = getattr(melody_brain, 'phrase_len', 0) / 12.0
             last_note_safe = getattr(melody_brain, 'last_note', 0)
             base_intensity = intensity_base
             melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
             intensity = max(50, min(120, base_intensity + (melody_offset - 80)))
+
+            flags = "g0B0H0P86"
 
             writer.add_note(
                 length=note_length,
@@ -531,7 +549,8 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 intensity=intensity,
                 envelope=envelope,
                 pbs=pbs,
-                pbw=pbw
+                pbw=pbw,
+                flags=flags
             )
 
     return writer.finalize()
