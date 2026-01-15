@@ -273,6 +273,7 @@ class MotifMemory:
 
 
 class MelodyBrain:
+    _intone_cache = {}
     def __init__(self, seed=None):
         self.seed = seed or 1234
         random.seed(self.seed)
@@ -318,6 +319,10 @@ class MelodyBrain:
         phrase_pos = (self.phrase_len - 1) / max(12, settings["phrase"])
         contour_curve = contour_bias / 100.0
         contour_target = (phrase_pos + contour_curve * phrase_pos * (1 - phrase_pos)) * pitch_range
+
+        if intone_level not in self._intone_cache:
+            self._intone_cache[intone_level] = get_intone_settings(intone_level)
+        settings = self._intone_cache[intone_level]
 
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
@@ -415,6 +420,14 @@ def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0,
     length = int(base_length * factor * length_factor)
     return max(HiroConfig.MIN_NOTE_LEN,
                min(HiroConfig.MAX_NOTE_LEN, length))
+
+def get_random_note(root_midi, scale_name, flat_mode=False, quarter_tone=False):
+    scale = SCALES[scale_name]
+    if flat_mode: return root_midi + 5
+    note = random.choice(scale)
+    if quarter_tone and random.random() < 0.3:
+        note += random.choice([0, 0.5, -0.5])
+    return root_midi + note
 
 
 def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale,
