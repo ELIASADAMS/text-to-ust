@@ -1,8 +1,9 @@
 """
-Main kanji conversion engine with automatic Kanken level merging.
+Main kanji conversion engine.
 """
 
 from typing import Dict, List
+
 from .kanken_level_10 import KANKEN_10_READINGS
 from .kanken_level_9 import KANKEN_9_READINGS
 
