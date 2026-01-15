@@ -1,5 +1,5 @@
 """
-Kanken Level 10 - 80 most basic kanji + lyrics readings.
+Kanken Level 10 - 80 most basic kanji
 """
 
 KANKEN_10_READINGS = {
@@ -31,5 +31,5 @@ KANKEN_10_READINGS = {
     "赤": "あか", "白": "しろ", "黒": "くろ", "青": "あお",
 
     # POSSESSIVES
-    "の": "の",  # Particle (stays as-is)
+    "の": "の",
 }
