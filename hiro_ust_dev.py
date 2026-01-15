@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
 from config import HiroConfig
-# IMPORT DATA MODULES
+# IMPORT MODULES
 from constants import VOWEL_CHARS, CONSONANT_CHARS
 from envelopes import ENVELOPE_PRESETS
 from hiragana_map import HIRAGANA_MAP
@@ -88,7 +88,6 @@ class USTWriter:
         return "\n".join(self.lines)
 
 
-#   FIRST CLASS
 class HiroUSTGenerator:
     _instance = None
 
@@ -145,7 +144,7 @@ class HiroUSTGenerator:
                 i = best_end
             else:
                 char = text[start]
-                if char == 'っ':  # Sokuon - gemination
+                if char == 'っ':  # Sokuon
                     phonemes.append('っ')
                     i = start + 1
                 else:
@@ -157,7 +156,7 @@ class HiroUSTGenerator:
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
 
-    # DOUBLE VOWELS ("aa", "ii")
+    # DOUBLE VOWELS
     if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
         return [(phoneme[0], 1.8)]  # Long vowel
 
@@ -237,7 +236,6 @@ class MotifMemory:
     def add_motif(self, notes):
         if len(notes) >= self.motif_length:
             motif = notes[-self.motif_length:]
-            # Avoid duplicate
             if motif not in self.stored_motifs:
                 self.stored_motifs.append(motif)
                 # Keep only top 5
@@ -249,7 +247,7 @@ class MotifMemory:
                 random.random() < use_motif_prob and
                 len(self.stored_motifs[-1]) > 1):
 
-            # REUSE MOTIF WITH VARIATION
+            # REUSE MOTIF
             motif = self.stored_motifs[-1]
             next_in_motif = motif[1:]
 
@@ -263,7 +261,7 @@ class MotifMemory:
             closest_scale = min(scale, key=lambda x: abs(x - target_note))
             return closest_scale
 
-        # No motif: regular
+        # No motif
         melodic_notes = [0, 2, 4, 5, 7, 9]
         return random.choice(melodic_notes)
 
@@ -285,12 +283,11 @@ class MelodyBrain:
         self.motif_memory = MotifMemory(motif_length=4)
         self.VOWEL_CHARS = VOWEL_CHARS
         self.CONSONANT_CHARS = CONSONANT_CHARS
-        # Pitch accent attributes
         self.word_morae = []
         self.word_pos = 0
         self.pitch_drop_pos = 0
         self.is_high_pitch = False
-        self.prev_high_pitch = False  # Track for drops
+        self.prev_high_pitch = False
 
     def set_accent_pattern(self, pattern, word_length):
         self.word_morae = list(range(word_length))
@@ -318,12 +315,10 @@ class MelodyBrain:
         is_vowel = phoneme in 'あいうえお'
         is_stretch = phoneme == '+'
 
-        # CONTOUR FIRST (move up)
         phrase_pos = (self.phrase_len - 1) / max(12, settings["phrase"])
         contour_curve = contour_bias / 100.0
         contour_target = (phrase_pos + contour_curve * phrase_pos * (1 - phrase_pos)) * pitch_range
 
-        # BASE TARGET NOTE (before accent)
         if self.phrase_len > settings["phrase"] or phoneme in '。！？':
             self.phrases.append(self.last_note)
             self.last_note = min(max(0, int(contour_target * 0.8)), 11)
@@ -352,7 +347,7 @@ class MelodyBrain:
                 if chord_tones:
                     target_note = min(chord_tones, key=lambda x: abs(x - target_note))
 
-        # APPLY ACCENT BLEND (now target_note exists)
+        # APPLY ACCENT BLEND
         if accent != "None":
             accent_factor = 1.5
             if self.is_high_pitch:
@@ -368,13 +363,11 @@ class MelodyBrain:
             self.word_pos = 0
             self.is_high_pitch = False
 
-        # Store recent notes AFTER accent
         self.recent_notes.append(self.last_note)
         if len(self.recent_notes) > 8:
             self.recent_notes.pop(0)
             self.motif_memory.add_motif(self.recent_notes)
 
-        # Voice leading + snap
         max_leap = settings["leap"]
         motion = max(-max_leap, min(max_leap, target_note - self.last_note))
         new_note = self.last_note + motion
@@ -398,9 +391,8 @@ class MelodyBrain:
 
 
 def get_note_length(phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None):
-    # Special case: '+' stretch continuation
     if phoneme == '+':
-        factor = 0.6  # your previous logic: base_length * 0.6
+        factor = 0.6
         length = int(base_length * factor * length_factor)
         return max(HiroConfig.MIN_NOTE_LEN,
                    min(HiroConfig.MAX_NOTE_LEN, length))
@@ -463,7 +455,7 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
             continue
 
         hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
-        # WORD BOUNDARY DETECTION + ACCENT SETUP
+        # WORD BOUNDARY DETECTION + ACCENT
         if accent != "None" and romaji_phoneme not in ['っ', '+']:
             if word_start or romaji_phoneme in [' ', '　', '、', '，']:
                 if word_phonemes:
@@ -473,10 +465,10 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
                 word_start = False
             word_phonemes.append(romaji_phoneme)
         else:
-            word_start = True  # Pauses/spacing reset
+            word_start = True
         stretch_notes = create_stretch_notes(hiragana_phoneme, stretch_prob, 3, melody_brain)
 
-        if accent != "None" and len(word_phonemes) == 1:  # FIRST MORA OF WORD
+        if accent != "None" and len(word_phonemes) == 1:
             estimated_word_length = min(6, max(2, len([p for p in text_elements if p == romaji_phoneme])))
             melody_brain.set_accent_pattern(accent, estimated_word_length)
 
@@ -512,23 +504,19 @@ def text_to_ust(text_elements, project_name, tempo, base_length, root_key, scale
             elif accent != "None" and hasattr(melody_brain, 'is_high_pitch'):
 
                 if not melody_brain.is_high_pitch and melody_brain.prev_high_pitch:
-                    # SHARP ACCENT DROP (like 0002: PBS=0;-40)
                     drop_strength = random.choice([-50, -40, -35, -30, -25])
                     pbs = f"0;{drop_strength}"
                     pbw = "0"
 
-                    # Add PBW curve for longer notes (like 0003)
                     if note_length > 200:
                         pbw = f"25,50,{int(note_length * 0.15)}"
                         pby = f"-15,-15,0"
 
                 elif accent == "Odaka" and melody_brain.word_pos == 2:
-                    # RISE for Odaka pattern
                     pbs = f"0;{random.choice([25, 35, 45])}"
                     pbw = "20"
 
                 elif melody_brain.word_pos == 1 and melody_brain.is_high_pitch:
-                    # GENTLE HIGH ENTRY
                     pbs = f"0;{random.choice([15, 20])}"
                     pbw = "0"
 
@@ -920,7 +908,6 @@ class USTGeneratorApp:
         if not ust_content:
             return
 
-        # Save NEXT TO EXE
         if getattr(sys, 'frozen', False):
             save_dir = os.path.dirname(sys.executable)  # EXE folder
         else:
