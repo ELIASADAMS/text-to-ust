@@ -1,5 +1,6 @@
 # config.py
 
+
 class HiroConfig:
     # Tempo
     MIN_TEMPO = 60.0
