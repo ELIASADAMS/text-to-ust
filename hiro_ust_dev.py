@@ -5,8 +5,10 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
 from config import HiroConfig
+
 # IMPORT MODULES
 from constants import VOWEL_CHARS, CONSONANT_CHARS
+from phonemizer import Phonemizer
 from envelopes import ENVELOPE_PRESETS
 from hiragana_map import HIRAGANA_MAP
 from intone_utils import get_intone_settings
@@ -58,17 +60,17 @@ class USTWriter:
         self.note_id += 1
 
     def add_note(
-            self,
-            length,
-            lyric,
-            note_num,
-            pre_utter,
-            voice_overlap,
-            intensity,
-            envelope,
-            pbs=0,
-            pbw=0,
-            flags="",
+        self,
+        length,
+        lyric,
+        note_num,
+        pre_utter,
+        voice_overlap,
+        intensity,
+        envelope,
+        pbs=0,
+        pbw=0,
+        flags="",
     ):
         self.lines.append(
             NOTE_BLOCK_TEMPLATE.format(
@@ -166,9 +168,9 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
 
     # SINGLE VOWEL STRETCH
     if (
-            len(phoneme) == 1
-            and phoneme in vowel_chars
-            and random.random() < (stretch_prob + 0.5)
+        len(phoneme) == 1
+        and phoneme in vowel_chars
+        and random.random() < (stretch_prob + 0.5)
     ):
         stretches = random.randint(1, max_stretch)
         return [(phoneme, 1.2)] + [("+", 0.6)] * stretches
@@ -176,7 +178,9 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
     return [(phoneme, 1.0)]
 
 
-def parse_song_structure(text, line_pause=960, section_pause=1920, on_warning=None):
+def parse_song_structure(
+    text, line_pause=960, section_pause=1920, on_warning=None, phonemizer=None
+):
     parts = {"Main": []}
     current_part = "Main"
     all_elements = []
@@ -200,25 +204,33 @@ def parse_song_structure(text, line_pause=960, section_pause=1920, on_warning=No
                 msg = f"⚠️ Empty section '[]' on line {line_num} - using 'Main'"
                 if on_warning:
                     on_warning(msg)
+            continue
 
         elif line:
             try:
-                generator = HiroUSTGenerator()
-                clean_line = line.replace(" ", "")
-                phonemes = generator.hiragana_to_romaji(line)
-                if phonemes:
-                    parts[current_part].append(line)
-                    all_elements.extend(phonemes)
-                    all_elements.append(f"PAUSE_LINE:{line_pause}")
-                else:
-                    msg = f"⚠️ Skipped invalid line {line_num}: '{line[:20]}...'"
-                    if on_warning:
-                        on_warning(msg)
+                # SPLIT LINE INTO WORDS
+                words = line.split()
+
+                for word_idx, word in enumerate(words):
+                    if phonemizer:
+                        phonemes = phonemizer.text_to_phonemes(word)
+                    else:
+                        generator = HiroUSTGenerator()
+                        phonemes = generator.hiragana_to_romaji(word)
+
+                    if phonemes:
+                        parts[current_part].append(word)
+                        all_elements.extend(phonemes)
+                        if word_idx < len(words) - 1:
+                            all_elements.append(f"PAUSE_WORD:120")
+
+                all_elements.append(f"PAUSE_LINE:{line_pause}")
+
             except Exception as e:
                 msg = f"⚠️ Parse error line {line_num}: '{line}' → {e}"
                 if on_warning:
                     on_warning(msg)
-                continue
+            continue
 
     if all_elements and all_elements[-1].startswith("PAUSE_LINE"):
         all_elements.pop()
@@ -230,7 +242,7 @@ def parse_song_structure(text, line_pause=960, section_pause=1920, on_warning=No
 
 
 def get_note_length(
-        phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None
+    phoneme, base_length=480, length_var=0.3, length_factor=1.0, brain=None
 ):
     if phoneme == "+":
         factor = 0.6
@@ -267,33 +279,37 @@ def get_random_note(root_midi, scale_name, flat_mode=False, quarter_tone=False):
 
 
 def text_to_ust(
-        text_elements,
-        project_name,
-        tempo,
-        base_length,
-        root_key,
-        scale,
-        intone_level,
-        length_var,
-        stretch_prob,
-        melody_brain,
-        pre_utterance=25,
-        voice_overlap=10,
-        intensity_base=80,
-        envelope="0,10,35,0,100,100,0",
-        flat_mode=False,
-        quartertone_mode=False,
-        lyrical_mode=True,
-        use_motifs=True,
-        chord_mode=False,
-        contour_bias=0,
-        pitch_range=70,
-        accent="None",
+    text_elements,
+    project_name,
+    tempo,
+    base_length,
+    root_key,
+    scale,
+    intone_level,
+    length_var,
+    stretch_prob,
+    melody_brain,
+    pre_utterance=25,
+    voice_overlap=10,
+    intensity_base=80,
+    envelope="0,10,35,0,100,100,0",
+    flat_mode=False,
+    quartertone_mode=False,
+    lyrical_mode=True,
+    use_motifs=True,
+    chord_mode=False,
+    contour_bias=0,
+    pitch_range=70,
+    accent="None",
 ):
     generator = HiroUSTGenerator()
     writer = USTWriter(project_name=project_name, tempo=tempo)
 
     for element in text_elements:
+        if element.startswith("PAUSE_WORD:"):
+            pause_length = int(element.split(":")[1])
+            writer.add_rest(pause_length)
+            continue
         if accent != "None":
             word_phonemes = []
             word_start = True
@@ -423,13 +439,13 @@ def text_to_ust(
 
 
 def get_random_note(
-        root_midi,
-        scale_name,
-        intone_level="Tight (1)",
-        flat_mode=False,
-        quarter_tone=False,
-        use_motifs=True,
-        chord_mode=False,
+    root_midi,
+    scale_name,
+    intone_level="Tight (1)",
+    flat_mode=False,
+    quarter_tone=False,
+    use_motifs=True,
+    chord_mode=False,
 ):
     scale = SCALES[scale_name]
     if flat_mode:
@@ -663,6 +679,16 @@ class USTGeneratorApp:
             length=100,
         ).pack(fill="x", pady=(0, 8))
 
+        ttk.Label(voice_panel, text="Phoneme:").pack(anchor="w")
+        self.phoneme_mode_var = ttk.Combobox(
+            voice_panel,
+            values=["Japanese", "Hepburn", "Wapuro", "English"],
+            state="readonly",
+            width=15,
+        )
+        self.phoneme_mode_var.set("Japanese")
+        self.phoneme_mode_var.pack(fill="x", pady=(0, 8))
+
         # Panel 4: UST + Output (COMBINED)
         output_panel = ttk.LabelFrame(controls_main, text="⚙️ UST/Output", padding=6)
         output_panel.pack(side="right", fill="both", expand=True)
@@ -794,7 +820,7 @@ class USTGeneratorApp:
             self.is_high_pitch = False
 
     def randomize_seed(self):
-        new_seed = random.randint(0, 2 ** 31 - 1)
+        new_seed = random.randint(0, 2**31 - 1)
         self.seed_var.set(str(new_seed))
         self.status_var.set(f"🎲 New seed: {new_seed}")
 
@@ -825,46 +851,46 @@ class USTGeneratorApp:
 
         for field, minv, maxv, name in [
             (
-                    self.line_pause_var,
-                    HiroConfig.MIN_LINE_PAUSE,
-                    HiroConfig.MAX_LINE_PAUSE,
-                    "Line Pause",
+                self.line_pause_var,
+                HiroConfig.MIN_LINE_PAUSE,
+                HiroConfig.MAX_LINE_PAUSE,
+                "Line Pause",
             ),
             (
-                    self.section_pause_var,
-                    HiroConfig.MIN_SECTION_PAUSE,
-                    HiroConfig.MAX_SECTION_PAUSE,
-                    "Section Pause",
+                self.section_pause_var,
+                HiroConfig.MIN_SECTION_PAUSE,
+                HiroConfig.MAX_SECTION_PAUSE,
+                "Section Pause",
             ),
             (
-                    self.length_var_ctrl,
-                    HiroConfig.MIN_LENGTH_VAR,
-                    HiroConfig.MAX_LENGTH_VAR,
-                    "Len Var",
+                self.length_var_ctrl,
+                HiroConfig.MIN_LENGTH_VAR,
+                HiroConfig.MAX_LENGTH_VAR,
+                "Len Var",
             ),
             (
-                    self.stretch_var,
-                    HiroConfig.MIN_STRETCH,
-                    HiroConfig.MAX_STRETCH,
-                    "Stretch",
+                self.stretch_var,
+                HiroConfig.MIN_STRETCH,
+                HiroConfig.MAX_STRETCH,
+                "Stretch",
             ),
             (
-                    self.pre_utter_var,
-                    HiroConfig.MIN_PRE_UTTER,
-                    HiroConfig.MAX_PRE_UTTER,
-                    "PreUtterance",
+                self.pre_utter_var,
+                HiroConfig.MIN_PRE_UTTER,
+                HiroConfig.MAX_PRE_UTTER,
+                "PreUtterance",
             ),
             (
-                    self.voice_overlap_var,
-                    HiroConfig.MIN_VOICE_OVERLAP,
-                    HiroConfig.MAX_VOICE_OVERLAP,
-                    "Voice Overlap",
+                self.voice_overlap_var,
+                HiroConfig.MIN_VOICE_OVERLAP,
+                HiroConfig.MAX_VOICE_OVERLAP,
+                "Voice Overlap",
             ),
             (
-                    self.intensity_base_var,
-                    HiroConfig.MIN_INTENSITY,
-                    HiroConfig.MAX_INTENSITY,
-                    "Intensity",
+                self.intensity_base_var,
+                HiroConfig.MIN_INTENSITY,
+                HiroConfig.MAX_INTENSITY,
+                "Intensity",
             ),
         ]:
             try:
@@ -898,7 +924,23 @@ class USTGeneratorApp:
             melodybrain = MelodyBrain(seed=int(self.seed_var.get()))
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
 
-            parts, elements = parse_song_structure(lyrics)
+            phonemizer = Phonemizer()
+            mode_map = {
+                "Japanese": "japanese",
+                "Hepburn": "hepburn",
+                "Wapuro": "wapuro",
+                "English": "english",
+            }
+            phonemizer.set_mode(mode_map[self.phoneme_mode_var.get()])
+
+            parts, elements = parse_song_structure(
+                lyrics,
+                int(self.line_pause_var.get()),
+                int(self.section_pause_var.get()),
+                on_warning=lambda msg: self.status_var.set(msg),
+                phonemizer=phonemizer,
+            )
+
             self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
 
             root_key = KEY_ROOTS[self.voice_var.get()]
@@ -995,23 +1037,44 @@ class USTGeneratorApp:
             self.status_var.set("❌ No lyrics to preview")
             return
 
-        parts, elements = parse_song_structure(lyrics)
-        preview = "Phoneme Breakdown (first 25):\n\n"
+        phonemizer = Phonemizer()
+        mode_map = {
+            "Japanese": "japanese",
+            "Hepburn": "hepburn",
+            "Wapuro": "wapuro",
+            "English": "english",
+        }
+        phonemizer.set_mode(mode_map[self.phoneme_mode_var.get()])
 
-        for i, elem in enumerate(elements[:25]):
+        # Parse with phonemizer
+        parts, elements = parse_song_structure(
+            lyrics,
+            int(self.line_pause_var.get()),
+            int(self.section_pause_var.get()),
+            phonemizer=phonemizer,
+            on_warning=lambda msg: self.status_var.set(msg),
+        )
+
+        preview = f"🔤 {self.phoneme_mode_var.get()} Mode (first 30):\n\n"
+        non_pause_count = 0
+
+        for i, elem in enumerate(elements[:30]):
             if elem.startswith("PAUSE"):
-                preview += f"{i:2d}: [PAUSE {elem.split(':')[1]}ms]\n"
+                pause_len = elem.split(":")[1]
+                preview += f"{i:2d}: [PAUSE {pause_len} ticks]\n"
             else:
                 generator = HiroUSTGenerator()
                 hiragana = generator.romaji_to_hiragana(elem)
-                preview += f"{i:2d}: {elem:8} → {hiragana}\n"
+                preview += f"{i:2d}: '{elem}' → {hiragana}\n"
+                non_pause_count += 1
 
         self.preview_text.config(state="normal")
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.insert("1.0", preview)
         self.preview_text.config(state="disabled")
+
         self.status_var.set(
-            f"✅ Previewed {len([e for e in elements if not e.startswith('PAUSE')])} phonemes"
+            f"✅ {self.phoneme_mode_var.get()}: {non_pause_count} phonemes"
         )
 
     def clear(self):
