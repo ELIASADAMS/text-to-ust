@@ -123,7 +123,7 @@ def convert_lyrics(text):
         if line.startswith("[") and line.endswith("]"):
             result.append(line)
         else:
-            # Normalize small kana FIRST
+            # Normalize small kana
             line = (
                 line.replace("ィ", "い")
                 .replace("ェ", "え")
