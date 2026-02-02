@@ -1,8 +1,7 @@
-# ustx_writer.py - EXACT OpenUtau 0.7 Professional Format
+# ustx_writer.py
 import yaml
 import random
 
-# EXACT expressions from your example
 EXPRESSIONS = {
     "dyn": {
         "name": "dynamics (curve)",
@@ -283,24 +282,22 @@ class USTXWriter:
         flags="",
         bpm=120,
     ):
-        length = max(60, min(1920, length))  # Just safety bounds, no snapping
+        length = max(60, min(1920, length))
 
-        # PITCH DROP EFFECTORS (from your accent system)
+        # PITCH DROP
         pitch_data = [{"x": 0, "y": 0, "shape": "io"}]
 
-        # Parse PBS pitch bend for drops
         if pbs != "0;0" and ";" in pbs:
             try:
                 drop_strength = int(pbs.split(";")[1])
-                if drop_strength < -20:  # Pitch drop detected
-                    # Professional pitch drop curve like your example
+                if drop_strength < -20:  # Pitch drop
                     pitch_data = [
                         {
                             "x": -60,
                             "y": drop_strength * 0.8,
                             "shape": "io",
                         },  # Sharp drop
-                        {"x": 59, "y": 0, "shape": "io"},  # Recover
+                        {"x": 59, "y": 0, "shape": "io"},
                     ]
                 elif drop_strength > 20:
                     # Pitch rise
@@ -316,14 +313,14 @@ class USTXWriter:
             except:
                 pass
         else:
-            # Natural melodic curve based on note context
+            # Natural melodic curve
             if random.random() < 0.3:
                 pitch_data = [
                     {"x": -45, "y": random.randint(-30, 30), "shape": "io"},
                     {"x": 44, "y": 0, "shape": "io"},
                 ]
 
-        # Professional vibrato (30% chance long vibrato)
+        # 30% chance long vibrato
         vibrato_length = random.randint(70, 100) if random.random() < 0.3 else 0
         vibrato = {
             "length": vibrato_length,
