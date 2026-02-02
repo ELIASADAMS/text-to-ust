@@ -168,7 +168,7 @@ class Phonemizer:
             return self._english_to_phonemes(text)
         elif self.mode == "japanese" and is_japanese_chars:
             # DIRECT HIRAGANA/KATAKANA → phonemes
-            from hiro_ust_dev import HiroUSTGenerator
+            from hiro_ust.core.generator import HiroUSTGenerator
 
             generator = HiroUSTGenerator()
             return generator.hiragana_to_romaji(text)
@@ -198,7 +198,7 @@ class Phonemizer:
                     i += 1
 
         # Convert to phonemes
-        from hiro_ust_dev import HiroUSTGenerator
+        from hiro_ust.core.generator import HiroUSTGenerator
 
         generator = HiroUSTGenerator()
         phonemes = []

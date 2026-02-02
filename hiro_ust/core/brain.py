@@ -1,11 +1,11 @@
-# melody_logic.py
+# brain.py
 import random
 
 import numpy as np
 
-from constants import VOWEL_CHARS, CONSONANT_CHARS
-from intone_utils import get_intone_settings
-from scales import SCALES
+from hiro_ust.constants import VOWEL_CHARS, CONSONANT_CHARS
+from hiro_ust.data.scales import SCALES
+from hiro_ust.utils.intone_utils import get_intone_settings
 
 
 class NoteMarkov:
