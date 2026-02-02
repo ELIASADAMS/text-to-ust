@@ -1,4 +1,5 @@
 # src/hiro_ust/core/generator.py
+
 """Core UST generation logic - no GUI dependencies"""
 try:
     from hiro_ust.ustx_writer import USTXWriter
@@ -31,7 +32,6 @@ from hiro_ust.utils.intone_utils import get_intone_settings
 import random
 
 
-# === CUT THESE CLASSES/FUNCTIONS FROM hiro_ust_dev.py ===
 class USTWriter:
     def __init__(self, project_name, tempo):
         self.lines = []
@@ -488,7 +488,6 @@ def get_random_note(
     return root_midi + base_semitone
 
 
-# MISSING FUNCTIONS - ADD TO END OF generator.py
 import random
 
 
