@@ -10,7 +10,6 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-# ===== REPLACE ALL IMPORTS (lines 11-19) =====
 from hiro_ust.core.generator import (
     USTWriter,
     HiroUSTGenerator,
@@ -31,12 +30,12 @@ except ImportError:
 from hiro_ust.utils.config import HiroConfig
 from hiro_ust.constants import VOWEL_CHARS, CONSONANT_CHARS
 from hiro_ust.utils.phonemizer import Phonemizer
-from hiro_ust.utils.envelopes import ENVELOPE_PRESETS  # Your envelopes.py ✓
+from hiro_ust.utils.envelopes import ENVELOPE_PRESETS
 from hiro_ust.data.hiragana_map import HIRAGANA_MAP
 from hiro_ust.utils.intone_utils import get_intone_settings
 from hiro_ust.utils.kana_to_hiragana import convert_lyrics
 from hiro_ust.data.key_roots import KEY_ROOTS
-from hiro_ust.core.brain import MelodyBrain  # melody_logic → brain.py
+from hiro_ust.core.brain import MelodyBrain
 from hiro_ust.data.mora_trie_data import MORA_DATA
 from hiro_ust.utils.presets import (
     build_preset_from_app,
@@ -822,8 +821,7 @@ class USTGeneratorApp:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
 
 
-# ===== ADD TO BOTTOM OF generator.py =====
-import random  # Add if missing
+import random
 
 
 def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
