@@ -1,3 +1,20 @@
+"""
+Hiro UST Generator - Main application module.
+
+This module provides the core functionality for generating UST/USTX files from
+Japanese lyrics using intelligent melody generation, phonemization, and accent
+pattern handling.
+
+Core Components:
+  - HiroUSTGenerator: Singleton for converting hiragana to romaji
+  - USTWriter: Generates UST format output
+  - USTGeneratorApp: GUI application (Tkinter)
+  - MelodyBrain: Intelligent melody generation engine
+  - Phonemizer: Multi-mode phoneme conversion
+
+Can be run directly (python src/hiro_ust/hiro_ust_dev.py) or imported as module.
+"""
+
 import os
 import random
 import sys
@@ -9,7 +26,6 @@ from tkinter import ttk, scrolledtext, filedialog
 if __name__ == "__main__" and __package__ is None:
     here = os.path.dirname(__file__)
     repo_root = os.path.abspath(os.path.join(here, ".."))  # src/
-    project_root = os.path.abspath(os.path.join(here, "..", ".."))  # repo root
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
     # set package name so relative imports resolve
@@ -51,25 +67,40 @@ from .ust_strings import (
 
 
 class USTWriter:
-    def __init__(self, project_name, tempo):
+    """Generates UST (Uta Synthesizer Tool) format files.
+
+    UST format is a plain-text music notation format commonly used with
+    UTAU (Utau Synthesizer) for voice synthesis.
+
+    Attributes:
+        lines (list): Accumulated UST format lines
+        note_id (int): Sequential ID counter for notes
+        project_name (str): Name of the project
+        tempo (float): Tempo in BPM
+    """
+
+    def __init__(self, project_name: str, tempo: float):
         self.lines = []
         self.note_id = 0
         self.project_name = str(project_name)
         self.tempo = tempo
         self._write_header()
 
-    def _write_header(self):
+    def _write_header(self) -> None:
+        """Write UST header section with project metadata."""
         self.lines.append(
             UST_HEADER_TEMPLATE.format(tempo=self.tempo, project_name=self.project_name)
         )
 
-    def add_rest(self, length):
+    def add_rest(self, length: int) -> None:
+        """Add a rest (silence) note of specified length."""
         self.lines.append(
             REST_NOTE_TEMPLATE.format(note_id=self.note_id, length=length)
         )
         self.note_id += 1
 
-    def add_small_tsu(self, root_key, length=60):
+    def add_small_tsu(self, root_key: int, length: int = 60) -> None:
+        """Add a small tsu (っ) gemination note."""
         self.lines.append(
             SMALL_TSU_TEMPLATE.format(
                 note_id=self.note_id, length=length, root_key=int(root_key)
@@ -79,17 +110,31 @@ class USTWriter:
 
     def add_note(
             self,
-            length,
-            lyric,
-            note_num,
-            pre_utter,
-            voice_overlap,
-            intensity,
-            envelope,
-            pbs=0,
-            pbw=0,
-            flags="",
-    ):
+            length: int,
+            lyric: str,
+            note_num: float,
+            pre_utter: int,
+            voice_overlap: int,
+            intensity: int,
+            envelope: str,
+            pbs: int = 0,
+            pbw: int = 0,
+            flags: str = "",
+    ) -> None:
+        """Add a music note with phonetic and timing information.
+
+        Args:
+            length: Duration in ticks
+            lyric: Hiragana/romaji lyric text
+            note_num: MIDI note number
+            pre_utter: Pre-utterance (lead-in) time in ms
+            voice_overlap: Voice overlap time in ms
+            intensity: Volume intensity (0-200)
+            envelope: Pitch envelope curve (ATK,DEC,SUSTend,REL format)
+            pbs: Pitch bend start (cents)
+            pbw: Pitch bend width
+            flags: Processing flags (e.g., 'g0B0H0P86')
+        """
         self.lines.append(
             NOTE_BLOCK_TEMPLATE.format(
                 note_id=self.note_id,
@@ -107,22 +152,34 @@ class USTWriter:
         )
         self.note_id += 1
 
-    def finalize(self):
+    def finalize(self) -> str:
+        """Finalize and return complete UST file content as string."""
         self.lines.append(TRACK_END)
         return "\n".join(self.lines)
 
 
 class HiroUSTGenerator:
+    """Singleton generator for hiragana/katakana to romaji conversion.
+
+    Builds a mora-based trie from MORA_DATA for efficient conversion of
+    Japanese text to romaji phonemes. Caches hiragana mappings.
+
+    Attributes:
+        hiragana_map (dict): Mapping from romaji to hiragana characters
+        mora_trie (dict): Trie structure for mora-based text matching
+    """
     _instance = None
 
     def __new__(cls):
+        """Ensure singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.hiragana_map = HIRAGANA_MAP
             cls._instance._build_mora_trie()
         return cls._instance
 
-    def _build_mora_trie(self):
+    def _build_mora_trie(self) -> None:
+        """Build trie from MORA_DATA for efficient hiragana->romaji matching."""
         self.mora_trie = {}
         for mora, phones in MORA_DATA.items():
             node = self.mora_trie
@@ -133,16 +190,35 @@ class HiroUSTGenerator:
             node["end"] = True
             node["phones"] = phones
 
-    def romaji_to_hiragana(self, phoneme):
+    def romaji_to_hiragana(self, phoneme: str) -> str:
+        """Convert romaji phoneme to hiragana character.
+
+        Args:
+            phoneme: Romaji string (e.g., 'ka', 'ji_s', 'ji_t')
+
+        Returns:
+            Hiragana character or original phoneme if not found
+        """
         if phoneme.startswith("kk") or phoneme.startswith("gg"):
             return self.hiragana_map.get(phoneme, phoneme)
         if phoneme in ["ji", "zu"]:
-            return self.hiragana_map.get(f"ji_s", phoneme)
+            return self.hiragana_map.get("ji_s", phoneme)
         if phoneme == "ji_t":
             return self.hiragana_map.get("ji_t", phoneme)
         return self.hiragana_map.get(phoneme, phoneme)
 
-    def hiragana_to_romaji(self, text):
+    def hiragana_to_romaji(self, text: str) -> list:
+        """Convert hiragana/katakana text to list of romaji phonemes.
+
+        Uses trie-based matching for efficient mora parsing.
+        Handles small tsu (っ) for gemination.
+
+        Args:
+            text: Hiragana or katakana text string
+
+        Returns:
+            List of romaji phoneme strings
+        """
         phonemes = []
         i = 0
         text = text.strip()
@@ -168,7 +244,7 @@ class HiroUSTGenerator:
                 i = best_end
             else:
                 char = text[start]
-                if char == "っ":  # Sokuon
+                if char == "っ":  # Sokuon (small tsu = gemination)
                     phonemes.append("っ")
                     i = start + 1
                 else:
@@ -177,7 +253,20 @@ class HiroUSTGenerator:
         return phonemes
 
 
-def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
+def create_stretch_notes(phoneme: str, stretch_prob: float = 0.25, max_stretch: int = 3, brain = None) -> list:
+    """Create note length variations (stretching) for a phoneme.
+
+    Handles vowel stretching and adds continuations (+) for extended notes.
+
+    Args:
+        phoneme: Hiragana phoneme string
+        stretch_prob: Probability of stretching (0.0-1.0)
+        max_stretch: Maximum number of continuation notes
+        brain: Optional MelodyBrain instance for context
+
+    Returns:
+        List of (phoneme, length_factor) tuples
+    """
     vowel_chars = brain.VOWEL_CHARS if brain else VOWEL_CHARS
 
     # DOUBLE VOWELS
@@ -197,8 +286,24 @@ def create_stretch_notes(phoneme, stretch_prob=0.25, max_stretch=3, brain=None):
 
 
 def parse_song_structure(
-        text, line_pause=960, section_pause=1920, on_warning=None, phonemizer=None
-):
+        text: str, line_pause: int = 960, section_pause: int = 1920, on_warning = None, phonemizer = None
+) -> tuple:
+    """Parse song structure with sections and pauses from text input.
+
+    Supports section markup [Verse 1], [Chorus] etc. and converts lyrics
+    to phoneme sequences with timing information.
+
+    Args:
+        text: Multi-line lyrics text with optional section markers
+        line_pause: Pause duration in ticks after each line
+        section_pause: Pause duration in ticks between sections
+        on_warning: Optional callback for warning messages
+        phonemizer: Optional Phonemizer instance for text conversion
+
+    Returns:
+        Tuple of (parts_dict, elements_list) where elements include
+        phonemes and pause markers
+    """
     parts = {"Main": []}
     current_part = "Main"
     all_elements = []
