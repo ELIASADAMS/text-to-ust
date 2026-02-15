@@ -1,6 +1,8 @@
 # ustx_writer.py - EXACT OpenUtau 0.7 Professional Format
 import yaml
 import random
+from xml.etree import ElementTree as ET
+from .ust_strings import UST_HEADER_TEMPLATE
 
 # EXACT expressions from your example
 EXPRESSIONS = {

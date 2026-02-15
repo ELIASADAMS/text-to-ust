@@ -3,9 +3,9 @@ import random
 
 import numpy as np
 
-from constants import VOWEL_CHARS, CONSONANT_CHARS
-from intone_utils import get_intone_settings
-from scales import SCALES
+from .constants import VOWEL_CHARS, CONSONANT_CHARS
+from .intone_utils import get_intone_settings
+from .scales import SCALES
 
 
 class NoteMarkov:
