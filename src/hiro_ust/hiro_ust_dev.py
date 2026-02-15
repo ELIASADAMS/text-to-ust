@@ -32,7 +32,7 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "hiro_ust"
 
 try:
-    from .ustx_writer import USTXWriter
+    from src.hiro_ust.generator.ustx_writer import USTXWriter
 
     USTX_AVAILABLE = True
 except ImportError:
@@ -42,22 +42,22 @@ from .config import HiroConfig
 
 # IMPORT MODULES
 from .constants import VOWEL_CHARS, CONSONANT_CHARS
-from .phonemizer import Phonemizer
-from .envelopes import ENVELOPE_PRESETS
-from .hiragana_map import HIRAGANA_MAP
-from .intone_utils import get_intone_settings
-from .kana_to_hiragana import convert_lyrics
-from .key_roots import KEY_ROOTS
-from .melody_logic import MelodyBrain
-from .mora_trie_data import MORA_DATA
-from .presets import (
+from src.hiro_ust.converter.phonemizer import Phonemizer
+from src.hiro_ust.melody.envelopes import ENVELOPE_PRESETS
+from src.hiro_ust.converter.hiragana_map import HIRAGANA_MAP
+from src.hiro_ust.melody.intone_utils import get_intone_settings
+from src.hiro_ust.converter.kana_to_hiragana import convert_lyrics
+from src.hiro_ust.voice.key_roots import KEY_ROOTS
+from src.hiro_ust.melody.melody_logic import MelodyBrain
+from src.hiro_ust.data.mora_trie_data import MORA_DATA
+from src.hiro_ust.voice.presets import (
     build_preset_from_app,
     apply_preset_to_app,
     save_preset_to_file,
     load_preset_from_file,
 )
-from .scales import SCALES
-from .ust_strings import (
+from src.hiro_ust.melody.scales import SCALES
+from src.hiro_ust.generator.ust_strings import (
     UST_HEADER_TEMPLATE,
     REST_NOTE_TEMPLATE,
     SMALL_TSU_TEMPLATE,
