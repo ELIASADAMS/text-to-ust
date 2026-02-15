@@ -1070,17 +1070,9 @@ class USTGeneratorApp:
                 "English": "english",
             }
             phonemizer.set_mode(mode_map[self.phoneme_mode_var.get()])
-+
-+            print('[debug] USTX_AVAILABLE ->', USTX_AVAILABLE, 'ustx_mode_var exists ->', hasattr(self, 'ustx_mode_var'))
-+            if hasattr(self, 'ustx_mode_var'):
-+                try:
-+                    print('[debug] ustx_mode_var.get() ->', self.ustx_mode_var.get())
-+                except Exception as e:
-+                    print('[debug] ustx_mode_var.get() error ->', e)
-+
-             if USTX_AVAILABLE and self.ustx_mode_var.get():
-+                print('[debug] Entering USTX generation')
-                 ust_content = text_to_ustx(
+
+            if USTX_AVAILABLE and self.ustx_mode_var.get():
+                ust_content = text_to_ustx(
                      elements,
                      str(self.project_var.get()),
                      float(self.tempo_var.get()),
@@ -1104,7 +1096,7 @@ class USTGeneratorApp:
                      pitch_range=float(self.range_var.get()),
                      accent=self.accent_var.get(),
                  )
-             else:
+            else:
                  # UST MODE
                  generator = HiroUSTGenerator()
                  writer = USTWriter(project_name=self.project_var.get(), tempo=float(self.tempo_var.get()))
