@@ -52,54 +52,51 @@ config = GeneratorConfig(
 __version__ = "0.2.0"
 __author__ = "Hiro UST Project"
 
-# Core API
-from .core import HiroUSTProcessor, GeneratorConfig
-from .logger import get_logger, logger
+# Lazy imports to avoid circular dependencies
+def __getattr__(name: str):
+    """Lazy import attributes to avoid circular imports."""
+    imports_map = {
+        "HiroUSTProcessor": ("core", "HiroUSTProcessor"),
+        "GeneratorConfig": ("core", "GeneratorConfig"),
+        "get_logger": ("logger", "get_logger"),
+        "logger": ("logger", "logger"),
+        "HiroUSTGenerator": ("converter", "HiroUSTGenerator"),
+        "Phonemizer": ("converter", "Phonemizer"),
+        "USTWriter": ("generator", "USTWriter"),
+        "MelodyBrain": ("melody", "MelodyBrain"),
+        "SCALES": ("melody", "SCALES"),
+        "KEY_ROOTS": ("voice", "KEY_ROOTS"),
+        "ENVELOPE_PRESETS": ("voice", "ENVELOPE_PRESETS"),
+        "USTGeneratorApp": ("ui", "USTGeneratorApp"),
+        "run_gui": ("ui", "main"),
+    }
 
-# Converter module
-from .converter import HiroUSTGenerator, Phonemizer
+    if name in imports_map:
+        module_name, attr_name = imports_map[name]
+        module = __import__(f"hiro_ust.{module_name}", fromlist=[attr_name])
+        attr = getattr(module, attr_name)
+        globals()[name] = attr
+        return attr
 
-# Generator module
-from .generator import USTWriter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-# Melody module
-from .melody import MelodyBrain, SCALES
-
-# Voice module
-from .voice import KEY_ROOTS, ENVELOPE_PRESETS
-
-# UI
-from .ui import USTGeneratorApp, main as run_gui
 
 __all__ = [
-    # Version
     "__version__",
-
-    # Core API
     "HiroUSTProcessor",
     "GeneratorConfig",
-
-    # Logging
     "get_logger",
     "logger",
-
-    # Converters
     "HiroUSTGenerator",
     "Phonemizer",
-
-    # Generators
     "USTWriter",
-
-    # Melody
     "MelodyBrain",
     "SCALES",
-
-    # Voice
     "KEY_ROOTS",
     "ENVELOPE_PRESETS",
-
-    # GUI
     "USTGeneratorApp",
     "run_gui",
 ]
+
+
 

@@ -11,9 +11,17 @@ Components:
 """
 
 from .mora_trie import build_mora_trie, MORA_DATA
-from hiro_ust.hiragana_map import HIRAGANA_MAP
-from hiro_ust.kana_to_hiragana import convert_lyrics
-from hiro_ust.phonemizer import Phonemizer
+
+try:
+    from hiro_ust.hiragana_map import HIRAGANA_MAP
+    from hiro_ust.kana_to_hiragana import convert_lyrics
+    from hiro_ust.phonemizer import Phonemizer
+except ImportError as e:
+    # Fallback for circular import issues
+    HIRAGANA_MAP = {}
+    convert_lyrics = lambda x: x
+    Phonemizer = None
+
 from hiro_ust.logger import get_logger
 
 logger = get_logger(__name__)
@@ -35,8 +43,11 @@ class HiroUSTGenerator:
         """Ensure singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.hiragana_map = HIRAGANA_MAP
+            # Import here to avoid circular imports
+            from hiro_ust.hiragana_map import HIRAGANA_MAP as hmap
+            cls._instance.hiragana_map = hmap
             cls._instance.mora_trie = build_mora_trie()
+            logger.debug("HiroUSTGenerator singleton created")
         return cls._instance
 
     def romaji_to_hiragana(self, phoneme: str) -> str:
@@ -68,10 +79,12 @@ class HiroUSTGenerator:
         Returns:
             List of romaji phoneme strings
         """
+        from hiro_ust.kana_to_hiragana import convert_lyrics as convert
+
         phonemes = []
         i = 0
         text = text.strip()
-        text = convert_lyrics(text)
+        text = convert(text)
 
         while i < len(text):
             node = self.mora_trie
@@ -106,4 +119,6 @@ __all__ = [
     "Phonemizer",
     "MORA_DATA",
 ]
+
+
 

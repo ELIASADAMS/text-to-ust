@@ -14,7 +14,13 @@ Example:
 
 from dataclasses import dataclass
 from typing import Optional
-from hiro_ust.logger import get_logger
+
+try:
+    from hiro_ust.logger import get_logger
+except ImportError:
+    # Fallback if logger not available
+    import logging
+    get_logger = lambda name: logging.getLogger(f"hiro_ust.{name}")
 
 logger = get_logger(__name__)
 
@@ -81,15 +87,36 @@ class HiroUSTProcessor:
             config: GeneratorConfig instance with all settings
         """
         self.config = config
-        logger.info(f"HiroUSTProcessor initialized with config: {config}")
+        logger.info(f"HiroUSTProcessor initialized with tempo={config.tempo}, scale={config.scale}")
 
-        # Import here to avoid circular imports
-        from hiro_ust.converter import HiroUSTGenerator, Phonemizer
-        from hiro_ust.melody import MelodyBrain
+        # Lazy imports to avoid circular dependencies
+        self._generator = None
+        self._phonemizer = None
+        self._melody_brain = None
 
-        self.generator = HiroUSTGenerator()
-        self.phonemizer = Phonemizer()
-        self.melody_brain = MelodyBrain(seed=config.seed)
+    @property
+    def generator(self):
+        """Lazy-load HiroUSTGenerator."""
+        if self._generator is None:
+            from hiro_ust.converter import HiroUSTGenerator
+            self._generator = HiroUSTGenerator()
+        return self._generator
+
+    @property
+    def phonemizer(self):
+        """Lazy-load Phonemizer."""
+        if self._phonemizer is None:
+            from hiro_ust.converter import Phonemizer
+            self._phonemizer = Phonemizer()
+        return self._phonemizer
+
+    @property
+    def melody_brain(self):
+        """Lazy-load MelodyBrain."""
+        if self._melody_brain is None:
+            from hiro_ust.melody import MelodyBrain
+            self._melody_brain = MelodyBrain(seed=self.config.seed)
+        return self._melody_brain
 
     def process_lyrics(
         self,
@@ -153,4 +180,6 @@ __all__ = [
     "HiroUSTProcessor",
     "GeneratorConfig",
 ]
+
+
 
