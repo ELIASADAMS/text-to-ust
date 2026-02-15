@@ -4,6 +4,17 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
+# Allow running this module directly (python src/hiro_ust/hiro_ust_dev.py)
+# by adding src/ to sys.path and setting __package__ so relative imports work.
+if __name__ == "__main__" and __package__ is None:
+    here = os.path.dirname(__file__)
+    repo_root = os.path.abspath(os.path.join(here, ".."))  # src/
+    project_root = os.path.abspath(os.path.join(here, "..", ".."))  # repo root
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    # set package name so relative imports resolve
+    __package__ = "hiro_ust"
+
 try:
     from .ustx_writer import USTXWriter
 

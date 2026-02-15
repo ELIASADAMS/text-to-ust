@@ -1,0 +1,10 @@
+[project]
+name = "hiro-ust"
+version = "0.0.0"
+
+[tool.poetry]
+packages = [{ include = "hiro_ust", from = "src" }]
+
+[tool.setuptools]
+packages = { find = { where = ["src"] } }
+
