@@ -10,7 +10,7 @@ Components:
   - Note generation and timing logic
 """
 
-from hiro_ust.ust_strings import (
+from .ust_strings import (
     UST_HEADER_TEMPLATE,
     REST_NOTE_TEMPLATE,
     SMALL_TSU_TEMPLATE,

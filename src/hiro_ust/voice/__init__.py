@@ -9,15 +9,15 @@ Components:
   - Phonetic utilities: Voice-specific processing
 """
 
-from hiro_ust.key_roots import KEY_ROOTS
-from hiro_ust.presets import (
+from .key_roots import KEY_ROOTS
+from .presets import (
     build_preset_from_app,
     apply_preset_to_app,
     save_preset_to_file,
     load_preset_from_file,
 )
-from hiro_ust.envelopes import ENVELOPE_PRESETS
-from hiro_ust.logger import get_logger
+from ..melody.envelopes import ENVELOPE_PRESETS
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -50,4 +50,3 @@ __all__ = [
     "get_envelope_presets",
     "get_voice_roots",
 ]
-

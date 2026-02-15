@@ -5,7 +5,7 @@ This module provides the core trie-building and mora data structures
 used for converting hiragana to romaji phonemes.
 """
 
-from hiro_ust.mora_trie_data import MORA_DATA
+from ..data.mora_trie_data import MORA_DATA
 from hiro_ust.logger import get_logger
 
 logger = get_logger(__name__)
@@ -47,4 +47,3 @@ __all__ = [
     "build_mora_trie",
     "MORA_DATA",
 ]
-

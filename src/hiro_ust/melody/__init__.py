@@ -16,11 +16,11 @@ Components:
   - Envelopes: Pitch envelope presets
 """
 
-from hiro_ust.melody_logic import MelodyBrain
-from hiro_ust.scales import SCALES
-from hiro_ust.intone_utils import get_intone_settings
-from hiro_ust.envelopes import ENVELOPE_PRESETS
-from hiro_ust.logger import get_logger
+from .melody_logic import MelodyBrain
+from .scales import SCALES
+from .intone_utils import get_intone_settings
+from .envelopes import ENVELOPE_PRESETS
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -8,7 +8,7 @@ used in UTAU and OpenUtau for voice synthesis.
 
 ### Programmatic Use (API)
 ```python
-from hiro_ust.core import HiroUSTProcessor, GeneratorConfig
+from .core import HiroUSTProcessor, GeneratorConfig
 
 config = GeneratorConfig(tempo=120, scale="Major Pentatonic")
 processor = HiroUSTProcessor(config)
@@ -39,7 +39,7 @@ python scripts/hiro_ust_dev.py
 Configure via `src/hiro_ust/config.py` or programmatically:
 
 ```python
-from hiro_ust.core import GeneratorConfig
+from .core import GeneratorConfig
 config = GeneratorConfig(
     tempo=120,
     scale="Major Pentatonic",

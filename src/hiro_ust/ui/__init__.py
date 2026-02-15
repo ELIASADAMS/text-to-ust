@@ -12,13 +12,13 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 
-from hiro_ust.logger import get_logger
-from hiro_ust.converter import HiroUSTGenerator
-from hiro_ust.core import HiroUSTProcessor, GeneratorConfig
-from hiro_ust.voice import KEY_ROOTS, get_envelope_presets
-from hiro_ust.melody import SCALES, get_intone_settings
-from hiro_ust.config import HiroConfig
-from hiro_ust.presets import (
+from ..logger import get_logger
+from ..converter import HiroUSTGenerator
+from ..core import HiroUSTProcessor, GeneratorConfig
+from ..voice import KEY_ROOTS, get_envelope_presets
+from ..melody import SCALES, get_intone_settings
+from ..config import HiroConfig
+from ..voice.presets import (
     build_preset_from_app,
     apply_preset_to_app,
     save_preset_to_file,

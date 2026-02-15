@@ -5,16 +5,22 @@ This script adds src/ to sys.path and launches the GUI application.
 Can be run directly: python scripts/hiro_ust_dev.py
 """
 
+# Thin launcher script to start the package entrypoint
 import sys
 import os
+from pathlib import Path
 
-# Add src to path for importing hiro_ust package
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+# Ensure 'src' is on sys.path regardless of CWD
+HERE = Path(__file__).resolve().parents[1]  # repository root
+SRC = HERE / 'src'
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
-# Now import and run the GUI
-from hiro_ust.ui import main
+# Launch package CLI
+from hiro_ust.cli import main
 
-if __name__ == "__main__":
-    main()
-
-
+if __name__ == '__main__':
+    debug = False
+    if '--debug-gui' in sys.argv or '--debug' in sys.argv:
+        debug = True
+    main(debug=debug)

@@ -32,7 +32,7 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "hiro_ust"
 
 try:
-    from src.hiro_ust.generator.ustx_writer import USTXWriter
+    from hiro_ust.generator.ustx_writer import USTXWriter
 
     USTX_AVAILABLE = True
 except ImportError:
@@ -42,22 +42,22 @@ from .config import HiroConfig
 
 # IMPORT MODULES
 from .constants import VOWEL_CHARS, CONSONANT_CHARS
-from src.hiro_ust.converter.phonemizer import Phonemizer
-from src.hiro_ust.melody.envelopes import ENVELOPE_PRESETS
-from src.hiro_ust.converter.hiragana_map import HIRAGANA_MAP
-from src.hiro_ust.melody.intone_utils import get_intone_settings
-from src.hiro_ust.converter.kana_to_hiragana import convert_lyrics
-from src.hiro_ust.voice.key_roots import KEY_ROOTS
-from src.hiro_ust.melody.melody_logic import MelodyBrain
-from src.hiro_ust.data.mora_trie_data import MORA_DATA
-from src.hiro_ust.voice.presets import (
+from .phonemizer import Phonemizer
+from .melody.envelopes import ENVELOPE_PRESETS
+from .converter.hiragana_map import HIRAGANA_MAP
+from .melody.intone_utils import get_intone_settings
+from .converter.kana_to_hiragana import convert_lyrics
+from .voice.key_roots import KEY_ROOTS
+from .melody.melody_logic import MelodyBrain
+from .data.mora_trie_data import MORA_DATA
+from .voice.presets import (
     build_preset_from_app,
     apply_preset_to_app,
     save_preset_to_file,
     load_preset_from_file,
 )
-from src.hiro_ust.melody.scales import SCALES
-from src.hiro_ust.generator.ust_strings import (
+from .melody.scales import SCALES
+from .generator.ust_strings import (
     UST_HEADER_TEMPLATE,
     REST_NOTE_TEMPLATE,
     SMALL_TSU_TEMPLATE,
@@ -614,6 +614,7 @@ def get_random_note(
 # GUI
 class USTGeneratorApp:
     def __init__(self, root):
+        print('[hiro_ust_dev] USTGeneratorApp.__init__ start')
         self.root = root
         self.root.title("Hiro UST v4.2")
         self.root.geometry("900x800")
@@ -933,6 +934,9 @@ class USTGeneratorApp:
             preview_frame, height=6, state="disabled", font=("Consolas", 9)
         )
         self.preview_text.pack(fill="both", expand=True)
+
+        print('[hiro_ust_dev] USTGeneratorApp UI widgets created')
+        print('[hiro_ust_dev] USTGeneratorApp.__init__ end')
 
     def set_accent_pattern(self, pattern, word_length):
         self.word_morae = list(range(word_length))
@@ -1337,12 +1341,4 @@ class USTGeneratorApp:
         except Exception as e:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
 
-
-if __name__ == "__main__":
-    def main():
-        root = tk.Tk()
-        app = USTGeneratorApp(root)
-        root.mainloop()
-
-    main()
 
