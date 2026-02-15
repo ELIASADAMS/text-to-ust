@@ -38,7 +38,7 @@ ROMAJI_MAP = {
     "se": "せ",
     "so": "そ",
     "za": "ざ",
-    "ji": "じ",
+    "ji_s": "じ",  # sibilant じ (modern standard)
     "zu": "ず",
     "ze": "ぜ",
     "zo": "ぞ",
@@ -55,9 +55,8 @@ ROMAJI_MAP = {
     "te": "て",
     "to": "と",
     "da": "だ",
-    # use distinct keys for rare ぢ/づ mappings to avoid duplicate keys
-    "ji_t": "ぢ",
-    "zu_t": "づ",
+    "ji_t": "ぢ",  # affricate ぢ (rare, traditional)
+    "zu_t": "づ",  # affricate づ (rare, traditional)
     "de": "で",
     "do": "ど",
     "cha": "ちゃ",
