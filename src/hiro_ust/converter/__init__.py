@@ -37,6 +37,7 @@ class HiroUSTGenerator:
         hiragana_map (dict): Mapping from romaji to hiragana characters
         mora_trie (dict): Trie structure for mora-based text matching
     """
+
     _instance = None
 
     def __new__(cls):
@@ -45,6 +46,7 @@ class HiroUSTGenerator:
             cls._instance = super().__new__(cls)
             # Import here to avoid circular imports
             from hiro_ust.hiragana_map import HIRAGANA_MAP as hmap
+
             cls._instance.hiragana_map = hmap
             cls._instance.mora_trie = build_mora_trie()
             logger.debug("HiroUSTGenerator singleton created")
@@ -119,6 +121,3 @@ __all__ = [
     "Phonemizer",
     "MORA_DATA",
 ]
-
-
-

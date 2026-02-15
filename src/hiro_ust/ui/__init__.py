@@ -53,7 +53,9 @@ class USTGeneratorApp:
             if getattr(sys, "frozen", False):
                 icon_path = os.path.join(sys._MEIPASS, "hibiki.ico")
             else:
-                icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "hibiki.ico")
+                icon_path = os.path.join(
+                    os.path.dirname(__file__), "..", "..", "hibiki.ico"
+                )
 
             if os.path.exists(icon_path):
                 self.root.iconbitmap(icon_path)
@@ -80,7 +82,7 @@ class USTGeneratorApp:
         info_label = ttk.Label(
             frame,
             text="UI components being organized from hiro_ust_dev.py...",
-            foreground="gray"
+            foreground="gray",
         )
         info_label.pack(pady=10)
 
@@ -120,4 +122,3 @@ __all__ = [
     "USTGeneratorApp",
     "main",
 ]
-

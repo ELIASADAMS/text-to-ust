@@ -65,17 +65,17 @@ class USTWriter:
         self.note_id += 1
 
     def add_note(
-            self,
-            length: int,
-            lyric: str,
-            note_num: float,
-            pre_utter: int,
-            voice_overlap: int,
-            intensity: int,
-            envelope: str,
-            pbs: int = 0,
-            pbw: int = 0,
-            flags: str = "",
+        self,
+        length: int,
+        lyric: str,
+        note_num: float,
+        pre_utter: int,
+        voice_overlap: int,
+        intensity: int,
+        envelope: str,
+        pbs: int = 0,
+        pbw: int = 0,
+        flags: str = "",
     ) -> None:
         """Add a music note with phonetic and timing information.
 
@@ -117,4 +117,3 @@ class USTWriter:
 __all__ = [
     "USTWriter",
 ]
-

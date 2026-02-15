@@ -22,9 +22,7 @@ if logger.hasHandlers():
 # Console handler (INFO level)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
-console_format = logging.Formatter(
-    "%(name)s [%(levelname)s]: %(message)s"
-)
+console_format = logging.Formatter("%(name)s [%(levelname)s]: %(message)s")
 console_handler.setFormatter(console_format)
 logger.addHandler(console_handler)
 
@@ -37,7 +35,7 @@ try:
     file_handler.setLevel(logging.DEBUG)
     file_format = logging.Formatter(
         "[%(asctime)s] %(name)s [%(levelname)s]: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(file_format)
     logger.addHandler(file_handler)
@@ -56,4 +54,3 @@ def get_logger(name: str) -> logging.Logger:
         Configured logger instance
     """
     return logging.getLogger(f"hiro_ust.{name}")
-

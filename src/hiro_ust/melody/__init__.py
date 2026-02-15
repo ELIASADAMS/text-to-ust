@@ -30,4 +30,3 @@ __all__ = [
     "get_intone_settings",
     "ENVELOPE_PRESETS",
 ]
-

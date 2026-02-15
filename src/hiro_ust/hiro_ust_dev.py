@@ -1051,13 +1051,16 @@ class USTGeneratorApp:
     def _generate_content(self):
         # VALIDATE
         errors = self.validate_inputs()
+        print('[debug] _generate_content: validation errors ->', errors)
         if errors:
             self.status_var.set(f"❌ Fix: {' | '.join(errors)}")
             return None
 
         try:
             melodybrain = MelodyBrain(seed=int(self.seed_var.get()))
+            print('[debug] seed ->', self.seed_var.get())
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
+            print('[debug] lyrics repr ->', repr(lyrics))
 
             phonemizer = Phonemizer()
             mode_map = {
@@ -1067,136 +1070,136 @@ class USTGeneratorApp:
                 "English": "english",
             }
             phonemizer.set_mode(mode_map[self.phoneme_mode_var.get()])
++
++            print('[debug] USTX_AVAILABLE ->', USTX_AVAILABLE, 'ustx_mode_var exists ->', hasattr(self, 'ustx_mode_var'))
++            if hasattr(self, 'ustx_mode_var'):
++                try:
++                    print('[debug] ustx_mode_var.get() ->', self.ustx_mode_var.get())
++                except Exception as e:
++                    print('[debug] ustx_mode_var.get() error ->', e)
++
+             if USTX_AVAILABLE and self.ustx_mode_var.get():
++                print('[debug] Entering USTX generation')
+                 ust_content = text_to_ustx(
+                     elements,
+                     str(self.project_var.get()),
+                     float(self.tempo_var.get()),
+                     int(self.length_var.get()),
+                     root_key,
+                     self.scale_var.get(),
+                     self.intone_var.get(),
+                     float(self.length_var_ctrl.get()),
+                     float(self.stretch_var.get()),
+                     melodybrain,
+                     int(self.pre_utter_var.get()),
+                     int(self.voice_overlap_var.get()),
+                     int(self.intensity_base_var.get()),
+                     self._get_envelope_preset(self.envelope_var.get()),
+                     self.flat_var.get(),
+                     self.quartertone_var.get(),
+                     self.lyrical_mode_var.get(),
+                     self.motif_var.get(),
+                     self.chord_var.get(),
+                     contour_bias=float(self.contour_var.get()),
+                     pitch_range=float(self.range_var.get()),
+                     accent=self.accent_var.get(),
+                 )
+             else:
+                 # UST MODE
+                 generator = HiroUSTGenerator()
+                 writer = USTWriter(project_name=self.project_var.get(), tempo=float(self.tempo_var.get()))
 
-            parts, elements = parse_song_structure(
-                lyrics,
-                int(self.line_pause_var.get()),
-                int(self.section_pause_var.get()),
-                on_warning=lambda msg: self.status_var.set(msg),
-                phonemizer=phonemizer,
-            )
+                 pbs = "0;0"
+                 pbw = "0"
+                 flags = "g0B0H0P86"
+                 word_phonemes = []
+                 word_start = True
 
-            self.status_var.set(f"✅ Parsed {len(elements)} elements ✓")
+                 for element in elements:
+                     if element.startswith("PAUSE_WORD:"):
+                         pause_length = int(element.split(":")[1])
+                         writer.add_rest(pause_length)
+                         continue
 
-            root_key = KEY_ROOTS[self.voice_var.get()]
+                     if element.startswith("PAUSE_LINE:"):
+                         melodybrain.phrase_len = 0
+                         melodybrain.recent_notes.clear()
+                         pause_length = int(element.split(":")[1])
+                         num_rests = pause_length // HiroConfig.PAUSE_LINE_UNIT
+                         for _ in range(num_rests):
+                             writer.add_rest(HiroConfig.PAUSE_LINE_UNIT)
+                         continue
 
-            if USTX_AVAILABLE and self.ustx_mode_var.get():
-                ust_content = text_to_ustx(
-                    elements,
-                    str(self.project_var.get()),
-                    float(self.tempo_var.get()),
-                    int(self.length_var.get()),
-                    root_key,
-                    self.scale_var.get(),
-                    self.intone_var.get(),
-                    float(self.length_var_ctrl.get()),
-                    float(self.stretch_var.get()),
-                    melodybrain,
-                    int(self.pre_utter_var.get()),
-                    int(self.voice_overlap_var.get()),
-                    int(self.intensity_base_var.get()),
-                    self._get_envelope_preset(self.envelope_var.get()),
-                    self.flat_var.get(),
-                    self.quartertone_var.get(),
-                    self.lyrical_mode_var.get(),
-                    self.motif_var.get(),
-                    self.chord_var.get(),
-                    contour_bias=float(self.contour_var.get()),
-                    pitch_range=float(self.range_var.get()),
-                    accent=self.accent_var.get(),
-                )
-            else:
-                # UST MODE
-                generator = HiroUSTGenerator()
-                writer = USTWriter(project_name=self.project_var.get(), tempo=float(self.tempo_var.get()))
+                     if element.startswith("PAUSE_SECTION:"):
+                         melodybrain.phrase_len = 0
+                         melodybrain.recent_notes.clear()
+                         pause_length = int(element.split(":")[1])
+                         num_rests = pause_length // HiroConfig.PAUSE_SECTION_UNIT
+                         for _ in range(num_rests):
+                             writer.add_rest(HiroConfig.PAUSE_SECTION_UNIT)
+                         continue
 
-                pbs = "0;0"
-                pbw = "0"
-                flags = "g0B0H0P86"
-                word_phonemes = []
-                word_start = True
+                     romaji_phoneme = element
+                     if romaji_phoneme == "っ":
+                         writer.add_small_tsu(root_key, length=60)
+                         continue
 
-                for element in elements:
-                    if element.startswith("PAUSE_WORD:"):
-                        pause_length = int(element.split(":")[1])
-                        writer.add_rest(pause_length)
-                        continue
+                     hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
+                     stretch_notes = create_stretch_notes(hiragana_phoneme, float(self.stretch_var.get()), 3,
+                                                          melodybrain)
 
-                    if element.startswith("PAUSE_LINE:"):
-                        melodybrain.phrase_len = 0
-                        melodybrain.recent_notes.clear()
-                        pause_length = int(element.split(":")[1])
-                        num_rests = pause_length // HiroConfig.PAUSE_LINE_UNIT
-                        for _ in range(num_rests):
-                            writer.add_rest(HiroConfig.PAUSE_LINE_UNIT)
-                        continue
+                     if self.accent_var.get() != "None" and romaji_phoneme not in ["っ", "+"]:
+                         if word_start or romaji_phoneme in [" ", "　", "、", "，"]:
+                             if word_phonemes:
+                                 word_length = len(word_phonemes)
+                                 melodybrain.set_accent_pattern(self.accent_var.get(), max(2, word_length))
+                         word_phonemes = []
+                         word_start = False
+                     word_phonemes.append(romaji_phoneme)
+                     else:
+                         word_start = True
 
-                    if element.startswith("PAUSE_SECTION:"):
-                        melodybrain.phrase_len = 0
-                        melodybrain.recent_notes.clear()
-                        pause_length = int(element.split(":")[1])
-                        num_rests = pause_length // HiroConfig.PAUSE_SECTION_UNIT
-                        for _ in range(num_rests):
-                            writer.add_rest(HiroConfig.PAUSE_SECTION_UNIT)
-                        continue
+                     for stretch_phoneme, length_factor in stretch_notes:
+                         note_length = get_note_length(
+                             stretch_phoneme, int(self.length_var.get()), float(self.length_var_ctrl.get()),
+                             length_factor, melodybrain
+                         )
 
-                    romaji_phoneme = element
-                    if romaji_phoneme == "っ":
-                        writer.add_small_tsu(root_key, length=60)
-                        continue
+                         if self.lyrical_mode_var.get():
+                             note_num = melodybrain.get_smart_note(
+                                 root_key, self.scale_var.get(), stretch_phoneme, self.intone_var.get(),
+                                 self.flat_var.get(), self.quartertone_var.get(), self.motif_var.get(),
+                                 self.chord_var.get(), float(self.contour_var.get()), float(self.range_var.get()),
+                                 accent=self.accent_var.get()
+                             )
+                         else:
+                             note_num = get_random_note(root_key, self.scale_var.get(), flat_mode=self.flat_var.get(),
+                                                        quarter_tone=self.quartertone_var.get())
 
-                    hiragana_phoneme = generator.romaji_to_hiragana(romaji_phoneme)
-                    stretch_notes = create_stretch_notes(hiragana_phoneme, float(self.stretch_var.get()), 3,
-                                                         melodybrain)
+                         intensity = int(self.intensity_base_var.get())
+                         envelope = self._get_envelope_preset(self.envelope_var.get())
 
-                    if self.accent_var.get() != "None" and romaji_phoneme not in ["っ", "+"]:
-                        if word_start or romaji_phoneme in [" ", "　", "、", "，"]:
-                            if word_phonemes:
-                                word_length = len(word_phonemes)
-                                melodybrain.set_accent_pattern(self.accent_var.get(), max(2, word_length))
-                            word_phonemes = []
-                            word_start = False
-                        word_phonemes.append(romaji_phoneme)
-                    else:
-                        word_start = True
-
-                    for stretch_phoneme, length_factor in stretch_notes:
-                        note_length = get_note_length(
-                            stretch_phoneme, int(self.length_var.get()), float(self.length_var_ctrl.get()),
-                            length_factor, melodybrain
-                        )
-
-                        if self.lyrical_mode_var.get():
-                            note_num = melodybrain.get_smart_note(
-                                root_key, self.scale_var.get(), stretch_phoneme, self.intone_var.get(),
-                                self.flat_var.get(), self.quartertone_var.get(), self.motif_var.get(),
-                                self.chord_var.get(), float(self.contour_var.get()), float(self.range_var.get()),
-                                accent=self.accent_var.get()
-                            )
-                        else:
-                            note_num = get_random_note(root_key, self.scale_var.get(), flat_mode=self.flat_var.get(),
-                                                       quarter_tone=self.quartertone_var.get())
-
-                        intensity = int(self.intensity_base_var.get())
-                        envelope = self._get_envelope_preset(self.envelope_var.get())
-
-                        writer.add_note(
-                            length=note_length,
-                            lyric=stretch_phoneme,
-                            note_num=note_num,
-                            pre_utter=int(self.pre_utter_var.get()),
-                            voice_overlap=int(self.voice_overlap_var.get()),
-                            intensity=intensity,
-                            envelope=envelope,
-                            pbs=pbs,
-                            pbw=pbw,
-                            flags=flags,
-                        )
+                         writer.add_note(
+                             length=note_length,
+                             lyric=stretch_phoneme,
+                             note_num=note_num,
+                             pre_utter=int(self.pre_utter_var.get()),
+                             voice_overlap=int(self.voice_overlap_var.get()),
+                             intensity=intensity,
+                             envelope=envelope,
+                             pbs=pbs,
+                             pbw=pbw,
+                             flags=flags,
+                         )
 
                 ust_content = writer.finalize()
 
+            print('[debug] _generate_content: generated length ->', len(ust_content) if ust_content else None)
             return ust_content
         except Exception as e:
+            print('[debug] _generate_content: exception ->', e)
+            import traceback
+            traceback.print_exc()
             self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
 
@@ -1215,8 +1218,27 @@ class USTGeneratorApp:
         filename = os.path.join(save_dir, f"{self.project_var.get().replace(' ', '_')}{ext}")
 
         try:
-            with open(filename, "w", encoding="utf-8-sig") as f:
-                f.write(ust_content)
+            # Write atomically: write to temp file in same directory then replace
+            import tempfile
+            fd, tmp_path = tempfile.mkstemp(prefix="tmp_", suffix=ext, dir=save_dir, text=True)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+                    f.write(ust_content)
+                    f.flush()
+                    try:
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
+                # Replace target
+                os.replace(tmp_path, filename)
+            finally:
+                # Ensure temp removed if something went wrong
+                if os.path.exists(tmp_path) and not os.path.exists(filename):
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+            print(f"[hiro_ust_dev] Saved file: {filename} (bytes: {len(ust_content.encode('utf-8-sig'))})")
             self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
 
             self.preview_text.config(state="normal")
@@ -1251,8 +1273,26 @@ class USTGeneratorApp:
 
         if filename:
             try:
-                with open(filename, "w", encoding="utf-8-sig") as f:
-                    f.write(ust_content)
+                # Atomic write to chosen filename
+                import tempfile
+                save_dir = os.path.dirname(filename)
+                fd, tmp_path = tempfile.mkstemp(prefix="tmp_", suffix=os.path.splitext(filename)[1], dir=save_dir, text=True)
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+                        f.write(ust_content)
+                        f.flush()
+                        try:
+                            os.fsync(f.fileno())
+                        except Exception:
+                            pass
+                    os.replace(tmp_path, filename)
+                finally:
+                    if os.path.exists(tmp_path) and not os.path.exists(filename):
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
+                print(f"[hiro_ust_dev] Saved file via dialog: {filename} (bytes: {len(ust_content.encode('utf-8-sig'))})")
                 self.status_var.set(f"✅ Saved {os.path.basename(filename)}")
             except Exception as e:
                 self.status_var.set(f"❌ Save failed: {str(e)}")
@@ -1340,5 +1380,4 @@ class USTGeneratorApp:
             self.status_var.set(f"✅ Loaded: {os.path.basename(filename)}")
         except Exception as e:
             self.status_var.set(f"❌ Load failed: {str(e)[:50]}")
-
 

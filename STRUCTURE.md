@@ -5,6 +5,7 @@
 ### Overview
 
 The refactored version introduces a clean, modular architecture separating concerns:
+
 - **Business Logic** → Reusable API (core.py)
 - **Text Processing** → Dedicated converter package
 - **Melody Generation** → Isolated melody package  
@@ -65,6 +66,7 @@ src/hiro_ust/
 ## Module Responsibilities
 
 ### 📌 core.py
+
 **Purpose**: Public API for programmatic use
 
 ```python
@@ -81,6 +83,7 @@ class GeneratorConfig:
 **Use Case**: Library users, CLI tools, external integrations
 
 ### 🔄 converter/
+
 **Purpose**: Text/phoneme conversion
 
 ```python
@@ -96,6 +99,7 @@ class Phonemizer:
 **Use Case**: Lyric processing, phoneme extraction
 
 ### 📝 generator/
+
 **Purpose**: UST/USTX file generation
 
 ```python
@@ -108,6 +112,7 @@ class USTWriter:
 **Use Case**: Converting note sequences to file format
 
 ### 🎵 melody/
+
 **Purpose**: Intelligent melody generation
 
 ```python
@@ -122,6 +127,7 @@ SCALES = {"Major Pentatonic": [...], "Minor": [...], ...}
 **Use Case**: Melody generation with voice leading, accents
 
 ### 🎤 voice/
+
 **Purpose**: Voice-specific settings and presets
 
 ```python
@@ -135,6 +141,7 @@ def get_envelope_presets() -> dict
 **Use Case**: Voice management, envelope selection
 
 ### 📝 logger.py
+
 **Purpose**: Unified logging
 
 ```python
@@ -145,6 +152,7 @@ logger.info/debug/warning/error(...)
 **Use Case**: Debugging, error reporting
 
 ### 🖥️ ui/
+
 **Purpose**: Tkinter GUI application
 
 ```python
@@ -177,6 +185,7 @@ Output (UST/USTX File)
 ## API Usage Examples
 
 ### Example 1: Programmatic Generation
+
 ```python
 from hiro_ust.core import HiroUSTProcessor, GeneratorConfig
 
@@ -190,6 +199,7 @@ ust = processor.process_lyrics("きゃっきゃ", "MyProject")
 ```
 
 ### Example 2: Using Converter
+
 ```python
 from hiro_ust.converter import HiroUSTGenerator, Phonemizer
 
@@ -201,6 +211,7 @@ phonemizer.set_mode("japanese")
 ```
 
 ### Example 3: Melody Generation
+
 ```python
 from hiro_ust.melody import MelodyBrain, SCALES
 
@@ -213,6 +224,7 @@ note = brain.get_smart_note(
 ```
 
 ### Example 4: UST Generation
+
 ```python
 from hiro_ust.generator import USTWriter
 
@@ -223,6 +235,7 @@ ust_content = writer.finalize()
 ```
 
 ### Example 5: GUI Usage
+
 ```python
 from hiro_ust.ui import main
 
@@ -254,23 +267,27 @@ assert "[#0000]" in output  # UST format check
 ## Migration Path
 
 ### Phase 1: ✅ Complete
+
 - Modular structure created
 - core.py API defined
 - logger.py unified logging
 - Subpackages created
 
 ### Phase 2: In Progress
+
 - Extract GUI from hiro_ust_dev.py → ui/app.py
 - Create note_generator.py
 - Create dialogs.py, widgets.py
 
 ### Phase 3: TODO
+
 - Full hiro_ust_dev.py → ui/app.py migration
 - Remove legacy code
 - Add 100+ unit tests
 - Performance optimization
 
 ### Phase 4: TODO
+
 - Create CLI interface
 - Add USTX support enhancement
 - Documentation generation
@@ -278,12 +295,15 @@ assert "[#0000]" in output  # UST format check
 ## Compatibility Notes
 
 ### Backward Compatibility
+
 - Old `hiro_ust_dev.py` still available (deprecated)
 - All old imports still work via re-export
 - No breaking changes in v0.2.0
 
 ### Forward Compatibility
+
 - New code should import from subpackages:
+
   ```python
   # ✅ New way (recommended)
   from hiro_ust.core import HiroUSTProcessor
@@ -314,4 +334,3 @@ assert "[#0000]" in output  # UST format check
 3. **Web API**: FastAPI/Flask wrapper for core.py
 4. **CLI Tool**: Command-line interface
 5. **Cython Optimization**: Performance-critical paths
-

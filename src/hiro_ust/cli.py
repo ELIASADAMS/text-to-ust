@@ -2,6 +2,7 @@
 This module provides a stable `main()` that imports package internals and
 starts the GUI application or runs headless operations.
 """
+
 import sys
 from pathlib import Path
 import tkinter as tk

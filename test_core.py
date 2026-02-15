@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.abspath("src"))
 
 try:
     from hiro_ust.hiro_ust_dev import HiroUSTGenerator
+
     print("✓ HiroUSTGenerator imported successfully")
 except ImportError as e:
     print(f"✗ Failed to import HiroUSTGenerator: {e}")
@@ -23,6 +24,7 @@ except ImportError as e:
 
 try:
     from hiro_ust.phonemizer import Phonemizer
+
     print("✓ Phonemizer imported successfully")
 except ImportError as e:
     print(f"✗ Failed to import Phonemizer: {e}")
@@ -30,6 +32,7 @@ except ImportError as e:
 
 try:
     from hiro_ust.melody_logic import MelodyBrain
+
     print("✓ MelodyBrain imported successfully")
 except ImportError as e:
     print(f"✗ Failed to import MelodyBrain: {e}")
@@ -81,7 +84,7 @@ expected_ji = {
 }
 
 expected_zu = {
-    "zu": "ず",    # sibilant (modern standard)
+    "zu": "ず",  # sibilant (modern standard)
     "zu_t": "づ",  # affricate (rare, traditional)
 }
 
@@ -89,17 +92,20 @@ for key, hiragana in expected_ji.items():
     if ROMAJI_MAP.get(key) == hiragana:
         print(f"✓ {key} -> {hiragana}")
     else:
-        print(f"✗ {key} mapping incorrect: expected {hiragana}, got {ROMAJI_MAP.get(key)}")
+        print(
+            f"✗ {key} mapping incorrect: expected {hiragana}, got {ROMAJI_MAP.get(key)}"
+        )
         sys.exit(1)
 
 for key, hiragana in expected_zu.items():
     if ROMAJI_MAP.get(key) == hiragana:
         print(f"✓ {key} -> {hiragana}")
     else:
-        print(f"✗ {key} mapping incorrect: expected {hiragana}, got {ROMAJI_MAP.get(key)}")
+        print(
+            f"✗ {key} mapping incorrect: expected {hiragana}, got {ROMAJI_MAP.get(key)}"
+        )
         sys.exit(1)
 
 print("\n" + "=" * 50)
 print("ALL TESTS PASSED ✓")
 print("=" * 50)
-
