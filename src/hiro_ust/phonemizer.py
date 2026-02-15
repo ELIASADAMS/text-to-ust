@@ -55,8 +55,9 @@ ROMAJI_MAP = {
     "te": "て",
     "to": "と",
     "da": "だ",
-    "ji": "ぢ",
-    "zu": "づ",
+    # use distinct keys for rare ぢ/づ mappings to avoid duplicate keys
+    "ji_t": "ぢ",
+    "zu_t": "づ",
     "de": "で",
     "do": "ど",
     "cha": "ちゃ",
@@ -168,7 +169,7 @@ class Phonemizer:
             return self._english_to_phonemes(text)
         elif self.mode == "japanese" and is_japanese_chars:
             # DIRECT HIRAGANA/KATAKANA → phonemes
-            from hiro_ust_dev import HiroUSTGenerator
+            from .hiro_ust_dev import HiroUSTGenerator
 
             generator = HiroUSTGenerator()
             return generator.hiragana_to_romaji(text)
@@ -198,7 +199,7 @@ class Phonemizer:
                     i += 1
 
         # Convert to phonemes
-        from hiro_ust_dev import HiroUSTGenerator
+        from .hiro_ust_dev import HiroUSTGenerator
 
         generator = HiroUSTGenerator()
         phonemes = []

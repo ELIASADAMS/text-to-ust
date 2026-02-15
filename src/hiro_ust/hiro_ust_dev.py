@@ -1223,6 +1223,10 @@ class USTGeneratorApp:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = USTGeneratorApp(root)
-    root.mainloop()
+    def main():
+        root = tk.Tk()
+        app = USTGeneratorApp(root)
+        root.mainloop()
+
+    main()
+
