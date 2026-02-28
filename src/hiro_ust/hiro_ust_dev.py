@@ -428,6 +428,9 @@ def text_to_ustx(
     generator = HiroUSTGenerator()
     writer = USTXWriter(project_name=project_name, tempo=tempo)
 
+    print(f'[debug] text_to_ustx: received {len(text_elements)} elements')
+    print(f'[debug] text_to_ustx: first 10 elements: {text_elements[:10]}')
+
     word_phonemes = []
     word_start = True
 
@@ -562,6 +565,7 @@ def text_to_ustx(
                 bpm=tempo,
             )
 
+    print(f'[debug] text_to_ustx: finished, added {len(writer.notes)} notes')
     return writer.finalize()
 
 
@@ -1057,6 +1061,9 @@ class USTGeneratorApp:
             return None
 
         try:
+            # Get root key and elements from voice selection and lyrics
+            root_key = KEY_ROOTS[self.voice_var.get()]
+
             melodybrain = MelodyBrain(seed=int(self.seed_var.get()))
             print('[debug] seed ->', self.seed_var.get())
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
@@ -1070,6 +1077,15 @@ class USTGeneratorApp:
                 "English": "english",
             }
             phonemizer.set_mode(mode_map[self.phoneme_mode_var.get()])
+
+            # Parse song structure to get elements
+            parts, elements = parse_song_structure(
+                lyrics,
+                int(self.line_pause_var.get()),
+                int(self.section_pause_var.get()),
+                phonemizer=phonemizer,
+                on_warning=lambda msg: self.status_var.set(msg),
+            )
 
             if USTX_AVAILABLE and self.ustx_mode_var.get():
                 ust_content = text_to_ustx(
@@ -1147,9 +1163,10 @@ class USTGeneratorApp:
                                  melodybrain.set_accent_pattern(self.accent_var.get(), max(2, word_length))
                          word_phonemes = []
                          word_start = False
-                     word_phonemes.append(romaji_phoneme)
                      else:
                          word_start = True
+
+                     word_phonemes.append(romaji_phoneme)
 
                      for stretch_phoneme, length_factor in stretch_notes:
                          note_length = get_note_length(
@@ -1184,7 +1201,7 @@ class USTGeneratorApp:
                              flags=flags,
                          )
 
-                ust_content = writer.finalize()
+                 ust_content = writer.finalize()
 
             print('[debug] _generate_content: generated length ->', len(ust_content) if ust_content else None)
             return ust_content
