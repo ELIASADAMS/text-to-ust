@@ -12,3 +12,4 @@ hiro_tester.log
 /archive
 *.spec
 .DS_Store
+*.zip
