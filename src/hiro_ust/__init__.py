@@ -27,11 +27,11 @@ python scripts/hiro_ust_dev.py
 
 - **core**: Main API (HiroUSTProcessor)
 - **converter**: Text/phoneme conversion
-- **generator**: UST/USTX file generation
+- **generator**: UST/USTX file generation + NoteGenerator
 - **melody**: Melody generation engine
-- **voice**: Voice and preset management
+- **voice**: Voice management + phonetic utilities
 - **data**: Data tables and configurations
-- **ui**: Tkinter GUI application
+- **ui**: Tkinter GUI application + dialogs + widgets
 - **logger**: Unified logging
 
 ## Configuration
@@ -64,10 +64,28 @@ def __getattr__(name: str):
         "HiroUSTGenerator": ("converter", "HiroUSTGenerator"),
         "Phonemizer": ("converter", "Phonemizer"),
         "USTWriter": ("generator", "USTWriter"),
+        "NoteGenerator": ("generator", "NoteGenerator"),
+        "PitchBendCalculator": ("generator", "PitchBendCalculator"),
+        "EnvelopeCalculator": ("generator", "EnvelopeCalculator"),
         "MelodyBrain": ("melody", "MelodyBrain"),
         "SCALES": ("melody", "SCALES"),
         "KEY_ROOTS": ("voice", "KEY_ROOTS"),
         "ENVELOPE_PRESETS": ("voice", "ENVELOPE_PRESETS"),
+        "MoraAnalyzer": ("voice", "MoraAnalyzer"),
+        "AccentAnalyzer": ("voice", "AccentAnalyzer"),
+        "VowelHarmony": ("voice", "VowelHarmony"),
+        "PhoneticNormalizer": ("voice", "PhoneticNormalizer"),
+        "FileDialog": ("ui", "FileDialog"),
+        "SaveDialog": ("ui", "SaveDialog"),
+        "DialogMessages": ("ui", "DialogMessages"),
+        "LabeledEntry": ("ui", "LabeledEntry"),
+        "LabeledSpinbox": ("ui", "LabeledSpinbox"),
+        "LabeledCombobox": ("ui", "LabeledCombobox"),
+        "LabeledScale": ("ui", "LabeledScale"),
+        "CheckbuttonGroup": ("ui", "CheckbuttonGroup"),
+        "ParameterPanel": ("ui", "ParameterPanel"),
+        "ProgressBar": ("ui", "ProgressBar"),
+        "PresetManager": ("ui", "PresetManager"),
         "USTGeneratorApp": ("ui", "USTGeneratorApp"),
         "run_gui": ("ui", "main"),
     }
@@ -84,17 +102,42 @@ def __getattr__(name: str):
 
 __all__ = [
     "__version__",
+    # Core API
     "HiroUSTProcessor",
     "GeneratorConfig",
+    # Logging
     "get_logger",
     "logger",
+    # Converter
     "HiroUSTGenerator",
     "Phonemizer",
+    # Generator
     "USTWriter",
+    "NoteGenerator",
+    "PitchBendCalculator",
+    "EnvelopeCalculator",
+    # Melody
     "MelodyBrain",
     "SCALES",
+    # Voice & Phonetics
     "KEY_ROOTS",
     "ENVELOPE_PRESETS",
+    "MoraAnalyzer",
+    "AccentAnalyzer",
+    "VowelHarmony",
+    "PhoneticNormalizer",
+    # UI Components
+    "FileDialog",
+    "SaveDialog",
+    "DialogMessages",
+    "LabeledEntry",
+    "LabeledSpinbox",
+    "LabeledCombobox",
+    "LabeledScale",
+    "CheckbuttonGroup",
+    "ParameterPanel",
+    "ProgressBar",
+    "PresetManager",
     "USTGeneratorApp",
     "run_gui",
 ]
