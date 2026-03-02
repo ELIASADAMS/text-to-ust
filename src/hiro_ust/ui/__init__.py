@@ -13,7 +13,9 @@ Components:
 import os
 import sys
 import tkinter as tk
-from tkinter import ttk, scrolledtext, filedialog
+from tkinter import filedialog
+from tkinter import ttk
+import tkinter.scrolledtext as scrolledtext
 
 from ..logger import get_logger
 from ..converter import HiroUSTGenerator
