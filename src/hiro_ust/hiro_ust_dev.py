@@ -19,7 +19,13 @@ import os
 import random
 import sys
 import tkinter as tk
-from tkinter import ttk, scrolledtext, filedialog
+from tkinter import filedialog
+from tkinter import ttk
+import tkinter.scrolledtext as scrolledtext
+
+# Logging
+from .logger import get_logger
+logger = get_logger(__name__)
 
 # Allow running this module directly (python src/hiro_ust/hiro_ust_dev.py)
 # by adding src/ to sys.path and setting __package__ so relative imports work.
@@ -32,10 +38,12 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "hiro_ust"
 
 try:
-    from hiro_ust.generator.ustx_writer import USTXWriter
+    from .generator.ustx_writer import USTXWriter
 
     USTX_AVAILABLE = True
-except ImportError:
+    logger.debug("USTXWriter imported successfully; USTX mode enabled")
+except ImportError as e:
+    logger.debug("USTXWriter import failed", exc_info=e)
     USTX_AVAILABLE = False
 
 from .config import HiroConfig
@@ -428,8 +436,8 @@ def text_to_ustx(
     generator = HiroUSTGenerator()
     writer = USTXWriter(project_name=project_name, tempo=tempo)
 
-    print(f'[debug] text_to_ustx: received {len(text_elements)} elements')
-    print(f'[debug] text_to_ustx: first 10 elements: {text_elements[:10]}')
+    logger.debug("text_to_ustx: received %d elements", len(text_elements))
+    logger.debug("text_to_ustx: first 10 elements: %s", text_elements[:10])
 
     word_phonemes = []
     word_start = True
@@ -565,7 +573,7 @@ def text_to_ustx(
                 bpm=tempo,
             )
 
-    print(f'[debug] text_to_ustx: finished, added {len(writer.notes)} notes')
+    logger.debug("text_to_ustx: finished, added %d notes", len(writer.notes))
     return writer.finalize()
 
 
@@ -618,7 +626,7 @@ def get_random_note(
 # GUI
 class USTGeneratorApp:
     def __init__(self, root):
-        print('[hiro_ust_dev] USTGeneratorApp.__init__ start')
+        logger.debug('USTGeneratorApp.__init__ start')
         self.root = root
         self.root.title("Hiro UST v4.2")
         self.root.geometry("900x800")
@@ -626,11 +634,15 @@ class USTGeneratorApp:
 
         try:
             if getattr(sys, "frozen", False):
-                # running from EXE
+                # running from EXE - icon is bundled in _MEIPASS
                 icon_path = os.path.join(sys._MEIPASS, "hibiki.ico")
             else:
-                # running from .py
-                icon_path = os.path.join(os.path.dirname(__file__), "hibiki.ico")
+                # running from .py - icon is in project root
+                script_dir = os.path.dirname(__file__)
+                icon_path = os.path.join(os.path.dirname(os.path.dirname(script_dir)), "hibiki.ico")
+                if not os.path.exists(icon_path):
+                    # fallback: try current working directory
+                    icon_path = os.path.join(os.getcwd(), "hibiki.ico")
 
             if os.path.exists(icon_path):
                 self.root.iconbitmap(icon_path)
@@ -903,6 +915,10 @@ class USTGeneratorApp:
         ttk.Button(btn_frame, text="💾 Save", command=self.save_ust_only).pack(
             fill="x", pady=1
         )
+        if USTX_AVAILABLE:
+            ttk.Button(btn_frame, text="🌟 Export USTX", command=self.save_ust_only).pack(
+                fill="x", pady=1
+            )
         ttk.Button(btn_frame, text="📋 Prev", command=self.preview_phonemes).pack(
             fill="x", pady=1
         )
@@ -939,8 +955,8 @@ class USTGeneratorApp:
         )
         self.preview_text.pack(fill="both", expand=True)
 
-        print('[hiro_ust_dev] USTGeneratorApp UI widgets created')
-        print('[hiro_ust_dev] USTGeneratorApp.__init__ end')
+        logger.debug('USTGeneratorApp UI widgets created')
+        logger.debug('USTGeneratorApp.__init__ end')
 
     def set_accent_pattern(self, pattern, word_length):
         self.word_morae = list(range(word_length))
@@ -1055,7 +1071,7 @@ class USTGeneratorApp:
     def _generate_content(self):
         # VALIDATE
         errors = self.validate_inputs()
-        print('[debug] _generate_content: validation errors ->', errors)
+        logger.debug('_generate_content: validation errors -> %s', errors)
         if errors:
             self.status_var.set(f"❌ Fix: {' | '.join(errors)}")
             return None
@@ -1065,9 +1081,9 @@ class USTGeneratorApp:
             root_key = KEY_ROOTS[self.voice_var.get()]
 
             melodybrain = MelodyBrain(seed=int(self.seed_var.get()))
-            print('[debug] seed ->', self.seed_var.get())
+            logger.debug('seed -> %s', self.seed_var.get())
             lyrics = self.lyrics_text.get("1.0", tk.END).strip()
-            print('[debug] lyrics repr ->', repr(lyrics))
+            logger.debug('lyrics repr -> %s', repr(lyrics))
 
             phonemizer = Phonemizer()
             mode_map = {
@@ -1203,12 +1219,10 @@ class USTGeneratorApp:
 
                  ust_content = writer.finalize()
 
-            print('[debug] _generate_content: generated length ->', len(ust_content) if ust_content else None)
+            logger.debug('_generate_content: generated length -> %s', len(ust_content) if ust_content else None)
             return ust_content
         except Exception as e:
-            print('[debug] _generate_content: exception ->', e)
-            import traceback
-            traceback.print_exc()
+            logger.exception('Error in _generate_content')
             self.status_var.set(f"⚠️ Rare error: {str(e)[:60]}")
             return None
 
@@ -1221,7 +1235,9 @@ class USTGeneratorApp:
         if getattr(sys, "frozen", False):
             save_dir = os.path.dirname(sys.executable)  # EXE folder
         else:
-            save_dir = os.path.dirname(os.path.abspath(__file__))  # Script folder
+            # When running from script, save to project root (two levels up from src/hiro_ust/)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.dirname(os.path.dirname(current_dir))  # src/hiro_ust/ -> src/ -> project root
 
         ext = ".ustx" if USTX_AVAILABLE and self.ustx_mode_var.get() else ".ust"
         filename = os.path.join(save_dir, f"{self.project_var.get().replace(' ', '_')}{ext}")
@@ -1247,7 +1263,7 @@ class USTGeneratorApp:
                         os.remove(tmp_path)
                     except Exception:
                         pass
-            print(f"[hiro_ust_dev] Saved file: {filename} (bytes: {len(ust_content.encode('utf-8-sig'))})")
+            logger.info("Saved file: %s (bytes: %d)", filename, len(ust_content.encode('utf-8-sig')))
             self.status_var.set(f"✅ Saved {os.path.basename(filename)}!")
 
             self.preview_text.config(state="normal")
@@ -1265,9 +1281,11 @@ class USTGeneratorApp:
             return
 
         if getattr(sys, "frozen", False):
-            initial_dir = sys._MEIPASS
+            initial_dir = os.path.dirname(sys.executable)
         else:
-            initial_dir = os.path.dirname(os.path.abspath(__file__))
+            # When running from script, use project root
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            initial_dir = os.path.dirname(os.path.dirname(current_dir))  # src/hiro_ust/ -> src/ -> project root
 
         default_name = f"{self.project_var.get()}.ustx"
 
@@ -1301,7 +1319,7 @@ class USTGeneratorApp:
                             os.remove(tmp_path)
                         except Exception:
                             pass
-                print(f"[hiro_ust_dev] Saved file via dialog: {filename} (bytes: {len(ust_content.encode('utf-8-sig'))})")
+                logger.info("Saved file via dialog: %s (bytes: %d)", filename, len(ust_content.encode('utf-8-sig')))
                 self.status_var.set(f"✅ Saved {os.path.basename(filename)}")
             except Exception as e:
                 self.status_var.set(f"❌ Save failed: {str(e)}")
