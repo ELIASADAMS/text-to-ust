@@ -1,17 +1,6 @@
 """
 Core API for Hiro UST Generator.
 
-Provides high-level interface for programmatic use without GUI.
-This module serves as the main entry point for library users.
-
-Example:
-    >>> from hiro_ust.core import HiroUSTProcessor
-    >>> processor = HiroUSTProcessor(config)
-    >>> ust_content = processor.process_lyrics("きゃっきゃ")
-    >>> with open("output.ust", "w", encoding="utf-8-sig") as f:
-    ...     f.write(ust_content)
-"""
-
 from dataclasses import dataclass
 from typing import Optional
 
