@@ -7,7 +7,9 @@ and USTX (OpenUtau) file formats.
 Components:
   - USTWriter: Generates UST format output
   - USTXWriter: Generates USTX format output
-  - Note generation and timing logic
+  - NoteGenerator: Note-level generation logic
+  - PitchBendCalculator: Pitch bend parameter calculation
+  - EnvelopeCalculator: Envelope and intensity calculation
 """
 
 from .ust_strings import (
@@ -17,9 +19,26 @@ from .ust_strings import (
     NOTE_BLOCK_TEMPLATE,
     TRACK_END,
 )
+from .note_generator import (
+    NoteGenerator,
+    PitchBendCalculator,
+    EnvelopeCalculator,
+)
 from hiro_ust.logger import get_logger
 
 logger = get_logger(__name__)
+
+__all__ = [
+    "USTWriter",
+    "NoteGenerator",
+    "PitchBendCalculator",
+    "EnvelopeCalculator",
+    "UST_HEADER_TEMPLATE",
+    "REST_NOTE_TEMPLATE",
+    "SMALL_TSU_TEMPLATE",
+    "NOTE_BLOCK_TEMPLATE",
+    "TRACK_END",
+]
 
 
 class USTWriter:
