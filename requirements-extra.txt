@@ -1,0 +1,4 @@
+PyYAML>=6.0
+ruamel.yaml>=0.17.21
+# YAML libs, PyInstaller may need PyYAML to include yaml used in ustx_writer.py
+
