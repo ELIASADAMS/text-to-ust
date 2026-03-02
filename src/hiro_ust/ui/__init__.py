@@ -4,7 +4,10 @@ Tkinter GUI application for Hiro UST Generator.
 Provides user interface for generating UST files from Japanese lyrics
 with real-time preview and configurable melody generation.
 
-This module contains the main application window and GUI components.
+Components:
+  - USTGeneratorApp: Main application window
+  - dialogs: File and dialog utilities
+  - widgets: Reusable Tkinter widgets
 """
 
 import os
@@ -24,8 +27,33 @@ from ..voice.presets import (
     save_preset_to_file,
     load_preset_from_file,
 )
+from .dialogs import FileDialog, SaveDialog, DialogMessages
+from .widgets import (
+    LabeledEntry,
+    LabeledSpinbox,
+    LabeledCombobox,
+    LabeledScale,
+    CheckbuttonGroup,
+    ParameterPanel,
+    ProgressBar,
+    PresetManager,
+)
 
 logger = get_logger(__name__)
+
+__all__ = [
+    "FileDialog",
+    "SaveDialog",
+    "DialogMessages",
+    "LabeledEntry",
+    "LabeledSpinbox",
+    "LabeledCombobox",
+    "LabeledScale",
+    "CheckbuttonGroup",
+    "ParameterPanel",
+    "ProgressBar",
+    "PresetManager",
+]
 
 
 class USTGeneratorApp:
