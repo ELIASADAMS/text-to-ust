@@ -6,7 +6,7 @@ Manages voice-specific settings, presets, and phonetic parameters.
 Components:
   - Key roots: Voice key mappings
   - Presets: Voice and parameter presets
-  - Phonetic utilities: Voice-specific processing
+  - Phonetic utilities: Voice-specific phonetic processing
 """
 
 from .key_roots import KEY_ROOTS
@@ -15,6 +15,12 @@ from .presets import (
     apply_preset_to_app,
     save_preset_to_file,
     load_preset_from_file,
+)
+from .phonetic_utils import (
+    MoraAnalyzer,
+    AccentAnalyzer,
+    VowelHarmony,
+    PhoneticNormalizer,
 )
 from ..melody.envelopes import ENVELOPE_PRESETS
 from ..logger import get_logger
@@ -43,6 +49,10 @@ def get_voice_roots():
 __all__ = [
     "KEY_ROOTS",
     "ENVELOPE_PRESETS",
+    "MoraAnalyzer",
+    "AccentAnalyzer",
+    "VowelHarmony",
+    "PhoneticNormalizer",
     "build_preset_from_app",
     "apply_preset_to_app",
     "save_preset_to_file",
