@@ -1,13 +1,6 @@
 """
 Note-level generation logic for UST/USTX files.
 
-This module handles individual note creation, including:
-- Note length calculation with variation
-- Note pitch selection with intelligence
-- Accent pattern application
-- Envelope and pitch bend generation
-
-Separates note-level concerns from high-level text processing.
 """
 
 import random
@@ -20,19 +13,14 @@ from ..melody.intone_utils import get_intone_settings
 
 
 class NoteGenerator:
-    """Generator for individual note parameters.
+    """
+    Generator for individual note params.
 
-    Handles note length calculation, pitch selection, and effect parameters
-    without dependencies on UI or file writing.
-
-    Example:
-        >>> gen = NoteGenerator(base_length=240, length_var=0.3)
-        >>> length = gen.get_note_length("a", length_factor=1.0)
-        >>> pitch = gen.get_random_pitch(root_key=60, scale_name="Major Pentatonic")
     """
 
     def __init__(self, base_length: int = 240, length_var: float = 0.3):
-        """Initialize note generator.
+        """
+        Init note generator.
 
         Args:
             base_length: Base note length in ticks (480 = quarter note)
@@ -49,10 +37,8 @@ class NoteGenerator:
         length_factor: float = 1.0,
         melody_brain: Optional[object] = None,
     ) -> int:
-        """Calculate note length with variation based on phoneme type.
-
-        Vowels get longer durations, consonants shorter.
-        Length is clamped to HiroConfig min/max bounds.
+        """
+        Calculate note length with variation based on phoneme type.
 
         Args:
             phoneme: Romaji phoneme string (e.g., 'a', 'ka', '+')
@@ -103,14 +89,13 @@ class NoteGenerator:
         use_motifs: bool = True,
         chord_mode: bool = False,
     ) -> float:
-        """Generate random pitch within scale constraints.
-
-        Applies motif memory, chords, and microtones based on settings.
+        """
+        Generate random pitch within scale constr.
 
         Args:
             root_key: MIDI note number for root
             scale_name: Name of scale (e.g., "Major Pentatonic")
-            intone_level: Intonation setting ("Tight", "Medium", "Wide", "Wild")
+            intone_level: Intone setting ("Tight", "Medium", "Wide", "Wild")
             flat_mode: If True, return flat/monotone pitch
             quartertone_mode: If True, allow microtones
             use_motifs: If True, use pitch motif memory
@@ -136,27 +121,23 @@ class NoteGenerator:
             if len(recent) >= 2:
                 # Continue motif from previous notes
                 motif_continue = recent[-1]
-                base_semitone = min(
-                    scale, key=lambda x: abs(x - (motif_continue % 12))
-                )
+                base_semitone = min(scale, key=lambda x: abs(x - (motif_continue % 12)))
             self._recent_notes.append(base_semitone)
-            # Keep only last 4 notes for motif tracking
+            # Keep only last 4 notes for tracking
             if len(self._recent_notes) > 4:
                 self._recent_notes = self._recent_notes[-4:]
 
-        # Apply chord constraints
+        # Apply chord constr
         settings = get_intone_settings(intone_level)
         if chord_mode:
             # Generate I-IV-V chord
             chord_root = {0: 0, 1: 3, 2: 5}.get(random.randint(0, 2), 0)
             chord = [
-                n
-                for n in [(chord_root + i) % 12 for i in [0, 4, 7]]
-                if n in scale
+                n for n in [(chord_root + i) % 12 for i in [0, 4, 7]] if n in scale
             ]
             base_semitone = random.choice(chord or scale)
 
-        # Apply leap limits from intonation settings
+        # Apply leap limits from intone settings
         if settings["leap"] < 3:
             base_semitone = min(base_semitone, settings["leap"] * 2)
 
@@ -173,9 +154,8 @@ class NoteGenerator:
         max_stretch: int = 3,
         melody_brain: Optional[object] = None,
     ) -> List[Tuple[str, float]]:
-        """Create stretched note variations for a phoneme.
-
-        Handles vowel doubling, note extension with continuation notes (+).
+        """
+        Create stretched note variations for a phoneme.
 
         Args:
             phoneme: Hiragana phoneme string
@@ -185,10 +165,6 @@ class NoteGenerator:
 
         Returns:
             List of (phoneme, length_factor) tuples for stretching
-
-        Example:
-            >>> gen.create_stretch_notes("あ", 0.5)
-            [("あ", 1.2), ("+", 0.6), ("+", 0.6)]
         """
         vowel_chars = (
             getattr(melody_brain, "VOWEL_CHARS", VOWEL_CHARS)
@@ -196,15 +172,11 @@ class NoteGenerator:
             else VOWEL_CHARS
         )
 
-        # Double vowels (長音) get extended
-        if (
-            len(phoneme) >= 2
-            and phoneme[0] == phoneme[1]
-            and phoneme[0] in vowel_chars
-        ):
+        # Double vowels get extended
+        if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
             return [(phoneme[0], 1.8)]
 
-        # Single vowels may be stretched with continuation notes
+        # Single vowels may be stretched with continuation
         if (
             len(phoneme) == 1
             and phoneme in vowel_chars
@@ -218,9 +190,9 @@ class NoteGenerator:
 
 
 class PitchBendCalculator:
-    """Calculator for pitch bend (PBS/PBW) parameters.
+    """Calculator for pitch bend (PBS/PBW) params.
 
-    Generates pitch bend curves for accents, microtones, and special effects.
+    Gen pitch bend curves for accents, microtones, and special effects.
     """
 
     @staticmethod
@@ -248,9 +220,8 @@ class PitchBendCalculator:
         note_length: int,
         accent: str,
     ) -> Tuple[str, str, str, str]:
-        """Calculate bend for accent pattern.
-
-        Applies pitch drops and rises based on accent type and word position.
+        """
+        Calculate bend for accent pattern.
 
         Args:
             melody_brain: MelodyBrain instance with accent state
@@ -281,7 +252,7 @@ class PitchBendCalculator:
                 pbw = f"25,50,{int(note_length * 0.15)}"
                 pby = f"-15,-15,0"
 
-        # Odaka (high pitch on second mora)
+        # Odaka
         elif accent == "Odaka" and hasattr(melody_brain, "word_pos"):
             if melody_brain.word_pos == 2:
                 pbs = f"0;{random.choice([25, 35, 45])}"
@@ -299,9 +270,8 @@ class PitchBendCalculator:
 
 
 class EnvelopeCalculator:
-    """Calculator for note envelope parameters.
-
-    Intensity modulation based on melody progression and note position.
+    """
+    Calculator for note envelope params.
     """
 
     @staticmethod
@@ -312,8 +282,6 @@ class EnvelopeCalculator:
         phrase_length: int = 12,
     ) -> int:
         """Calculate intensity (volume) for a note.
-
-        Applies dynamic changes based on phrase position and melody contour.
 
         Args:
             melody_brain: MelodyBrain with current note
@@ -338,5 +306,3 @@ __all__ = [
     "PitchBendCalculator",
     "EnvelopeCalculator",
 ]
-
-
