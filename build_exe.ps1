@@ -1,5 +1,4 @@
 # Build script for Hiro UST Generator EXE
-# This script handles dependency installation and builds the EXE
 
 param(
     [switch]$Clean,
