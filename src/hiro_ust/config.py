@@ -36,9 +36,9 @@ class HiroConfig:
     RENDER_INTENSITY_MIN = 50
     RENDER_INTENSITY_MAX = 120
 
-    # Default rests for generated pauses
-    PAUSE_LINE_UNIT = 240  # line rests
-    PAUSE_SECTION_UNIT = 480  # section rests
+    # Default rests
+    PAUSE_LINE_UNIT = 240  # line
+    PAUSE_SECTION_UNIT = 480  # section
 
     # Quarter‑tone → PBS scaling
     PBS_SCALE = 50  # fraction * PBS_SCALE
