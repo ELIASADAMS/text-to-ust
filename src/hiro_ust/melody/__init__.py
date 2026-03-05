@@ -7,12 +7,12 @@ Provides intelligent melody generation with support for:
 - Motif memory and repetition
 - Chord progressions
 - Accent patterns (Japanese pitch accent)
-- Intonation levels
+- Intone levels
 
 Components:
   - MelodyBrain: Main melody generation engine
   - Scales: Musical scale definitions
-  - Intone settings: Intonation parameters
+  - Intone settings: Intone params
   - Envelopes: Pitch envelope presets
 """
 
