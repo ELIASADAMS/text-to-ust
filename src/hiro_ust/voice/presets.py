@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 
 def build_preset_from_app(app) -> Dict[str, Any]:
-    """Read all relevant Tk variables from app and return a serializable dict"""
     return {
         "tempo": app.tempo_var.get(),
         "length": app.length_var.get(),
@@ -31,7 +30,6 @@ def build_preset_from_app(app) -> Dict[str, Any]:
 
 
 def apply_preset_to_app(app, preset: Dict[str, Any]):
-    """Apply values from preset dict back to Tk variables and checkboxes"""
     var_map = {
         "tempo": app.tempo_var,
         "length": app.length_var,
