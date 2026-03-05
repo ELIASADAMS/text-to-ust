@@ -38,7 +38,7 @@ ROMAJI_MAP = {
     "se": "せ",
     "so": "そ",
     "za": "ざ",
-    "ji_s": "じ",  # sibilant じ (modern standard)
+    "ji_s": "じ",  # sibilant じ (modern)
     "zu": "ず",
     "ze": "ぜ",
     "zo": "ぞ",
@@ -55,8 +55,8 @@ ROMAJI_MAP = {
     "te": "て",
     "to": "と",
     "da": "だ",
-    "ji_t": "ぢ",  # affricate ぢ (rare, traditional)
-    "zu_t": "づ",  # affricate づ (rare, traditional)
+    "ji_t": "ぢ",  # affricate ぢ (rare)
+    "zu_t": "づ",  # affricate づ (rare)
     "de": "で",
     "do": "ど",
     "cha": "ちゃ",
