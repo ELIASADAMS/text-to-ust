@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 import shutil
 
+
 def build_exe():
     """Build the EXE using PyInstaller."""
 
@@ -42,16 +43,16 @@ def build_exe():
 
     # PyInstaller command
     cmd = [
-        sys.executable, "-m", "PyInstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--name=Hiro_UST_Generator",
-        "--onefile",  # Single EXE file
-        "--windowed",  # No console window
-        # Ensure PyInstaller searches src for packages
+        "--onefile",
+        "--windowed",
         f"--paths={src_path}",
-        # Keep icon in bundle
         "--add-data=hibiki.ico;.",
         "--collect-all=hiro_ust",
-        # Hidden imports for common modules that may be missed
+        # Hidden imports
         "--hidden-import=hiro_ust",
         "--hidden-import=hiro_ust.core",
         "--hidden-import=hiro_ust.cli",
@@ -87,18 +88,16 @@ def build_exe():
         "--hidden-import=tkinter.ttk",
         "--hidden-import=tkinter.messagebox",
         "--hidden-import=numpy",
-        # Ensure yaml is included for ustx_writer
         "--hidden-import=yaml",
         "--distpath=dist",
         "--workpath=build",
         "--specpath=.",
     ]
 
-    # Add icon if available
+    # Add icon
     if icon_arg:
-        cmd.insert(6, icon_arg)  # after --paths arg
+        cmd.insert(6, icon_arg)
 
-    # Add main script
     cmd.append(str(src_path / "hiro_ust" / "cli.py"))
 
     print("\n📦 Building EXE with PyInstaller...")
@@ -131,6 +130,7 @@ def build_exe():
         print("\n❌ PyInstaller not found!")
         print("Install it with: pip install pyinstaller")
         return False
+
 
 if __name__ == "__main__":
     success = build_exe()
