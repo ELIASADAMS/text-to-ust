@@ -1,13 +1,6 @@
 """
 Text and phoneme conversion module.
 
-Provides conversion between different text formats (hiragana, katakana, romaji)
-and phoneme representations.
-
-Components:
-  - HiroUSTGenerator: Hiragana↔romaji conversion using mora trie
-  - Phonemizer: Multi-mode phoneme conversion
-  - Mora trie data and mappings
 """
 
 from .mora_trie import build_mora_trie, MORA_DATA
@@ -17,7 +10,7 @@ try:
     from hiro_ust.kana_to_hiragana import convert_lyrics
     from hiro_ust.phonemizer import Phonemizer
 except ImportError as e:
-    # Fallback for circular import issues
+    # Fallback
     HIRAGANA_MAP = {}
     convert_lyrics = lambda x: x
     Phonemizer = None
@@ -28,15 +21,6 @@ logger = get_logger(__name__)
 
 
 class HiroUSTGenerator:
-    """Singleton generator for hiragana/katakana to romaji conversion.
-
-    Builds a mora-based trie from MORA_DATA for efficient conversion of
-    Japanese text to romaji phonemes. Caches hiragana mappings.
-
-    Attributes:
-        hiragana_map (dict): Mapping from romaji to hiragana characters
-        mora_trie (dict): Trie structure for mora-based text matching
-    """
 
     _instance = None
 
@@ -53,7 +37,8 @@ class HiroUSTGenerator:
         return cls._instance
 
     def romaji_to_hiragana(self, phoneme: str) -> str:
-        """Convert romaji phoneme to hiragana character.
+        """
+        Convert romaji phoneme to hiragana character.
 
         Args:
             phoneme: Romaji string (e.g., 'ka', 'ji_s', 'ji_t')
@@ -70,10 +55,8 @@ class HiroUSTGenerator:
         return self.hiragana_map.get(phoneme, phoneme)
 
     def hiragana_to_romaji(self, text: str) -> list:
-        """Convert hiragana/katakana text to list of romaji phonemes.
-
-        Uses trie-based matching for efficient mora parsing.
-        Handles small tsu (っ) for gemination.
+        """
+        Convert hiragana/katakana text to list of romaji phonemes.
 
         Args:
             text: Hiragana or katakana text string
