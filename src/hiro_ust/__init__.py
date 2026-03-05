@@ -2,9 +2,10 @@ __version__ = "0.2.0"
 __author__ = "Hiro UST Project"
 
 
-# Lazy imports to avoid circular dependencies
 def __getattr__(name: str):
-    """Lazy import attributes to avoid circular imports."""
+    """
+    Lazy import Attr to avoid circular imports.
+    """
     imports_map = {
         "HiroUSTProcessor": ("core", "HiroUSTProcessor"),
         "GeneratorConfig": ("core", "GeneratorConfig"),
@@ -32,7 +33,7 @@ def __getattr__(name: str):
         "LabeledCombobox": ("ui", "LabeledCombobox"),
         "LabeledScale": ("ui", "LabeledScale"),
         "CheckbuttonGroup": ("ui", "CheckbuttonGroup"),
-        "ParameterPanel": ("ui", "ParameterPanel"),
+        "ParamPanel": ("ui", "ParamPanel"),
         "ProgressBar": ("ui", "ProgressBar"),
         "PresetManager": ("ui", "PresetManager"),
         "USTGeneratorApp": ("ui", "USTGeneratorApp"),
@@ -84,7 +85,7 @@ __all__ = [
     "LabeledCombobox",
     "LabeledScale",
     "CheckbuttonGroup",
-    "ParameterPanel",
+    "ParamPanel",
     "ProgressBar",
     "PresetManager",
     "USTGeneratorApp",
