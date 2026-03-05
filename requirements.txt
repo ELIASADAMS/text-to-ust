@@ -2,8 +2,4 @@
 pyinstaller>=6.1.0
 tinysegmenter>=0.2
 numpy>=1.26.0
-# Note: tkinter is included with Python by default on Windows
-
-# Optional dependencies for additional features
-# pydub>=0.25.1 (if needed for audio manipulation)
 
