@@ -1,30 +1,16 @@
 """
 Core API for Hiro UST Generator.
+    """
 
-from dataclasses import dataclass
-from typing import Optional
+    """
+    Configuration for UST generation.
 
-try:
-    from hiro_ust.logger import get_logger
-except ImportError:
-    # Fallback if logger not available
-    import logging
-
-    get_logger = lambda name: logging.getLogger(f"hiro_ust.{name}")
-
-logger = get_logger(__name__)
-
-
-@dataclass
-class GeneratorConfig:
-    """Configuration for UST generation.
-
-    Attributes:
+    Attr:
         tempo: BPM (60-240)
         base_length: Base note length in ticks
         root_key: MIDI note for voice root
         scale: Musical scale name
-        intone_level: Intonation level
+        intone_level: Intone level
         length_var: Length variation factor
         stretch_prob: Probability of note stretching
         pre_utterance: Pre-utterance time in ms
@@ -57,39 +43,25 @@ class GeneratorConfig:
 
 
 class HiroUSTProcessor:
-    """Main processor for generating UST files from lyrics.
-
-    This class provides the primary API for programmatic UST generation.
-    It coordinates between phonemization, melody generation, and UST writing.
-
-    Usage:
-        config = GeneratorConfig(tempo=120, scale="Major Pentatonic")
-        processor = HiroUSTProcessor(config)
-        ust_content = processor.process_lyrics(
-            "きゃっきゃ",
-            project_name="MyProject"
-        )
-    """
 
     def __init__(self, config: GeneratorConfig):
-        """Initialize processor with configuration.
+        """
+        Init processor with configuration.
 
         Args:
             config: GeneratorConfig instance with all settings
         """
         self.config = config
         logger.info(
-            f"HiroUSTProcessor initialized with tempo={config.tempo}, scale={config.scale}"
+            f"HiroUSTProcessor Init with tempo={config.tempo}, scale={config.scale}"
         )
 
-        # Lazy imports to avoid circular dependencies
         self._generator = None
         self._phonemizer = None
         self._melody_brain = None
 
     @property
     def generator(self):
-        """Lazy-load HiroUSTGenerator."""
         if self._generator is None:
             from hiro_ust.converter import HiroUSTGenerator
 
@@ -98,7 +70,6 @@ class HiroUSTProcessor:
 
     @property
     def phonemizer(self):
-        """Lazy-load Phonemizer."""
         if self._phonemizer is None:
             from hiro_ust.converter import Phonemizer
 
@@ -107,7 +78,6 @@ class HiroUSTProcessor:
 
     @property
     def melody_brain(self):
-        """Lazy-load MelodyBrain."""
         if self._melody_brain is None:
             from hiro_ust.melody import MelodyBrain
 
@@ -117,7 +87,8 @@ class HiroUSTProcessor:
     def process_lyrics(
         self, lyrics: str, project_name: str = "Hiro_Main", output_format: str = "ust"
     ) -> str:
-        """Process lyrics and generate UST/USTX content.
+        """
+        Process lyrics and Gen UST/USTX content.
 
         Args:
             lyrics: Input lyrics (hiragana, katakana, or romaji)
@@ -137,7 +108,6 @@ class HiroUSTProcessor:
         try:
             logger.info(f"Processing lyrics: {lyrics[:50]}...")
 
-            # Lazy imports to avoid circular imports
             from hiro_ust.hiro_ust_dev import (
                 parse_song_structure,
                 text_to_ustx,
@@ -145,17 +115,14 @@ class HiroUSTProcessor:
             )
             from hiro_ust.melody.melody_logic import MelodyBrain
 
-            # Use existing phonemizer if available (lazy property) else create one
             phonemizer = None
             try:
                 phonemizer = self.phonemizer
             except Exception:
                 phonemizer = None
 
-            # Build melody brain
             melody_brain = self.melody_brain
 
-            # Parse lyrics into elements (phonemes + pauses)
             parts, elements = parse_song_structure(
                 lyrics,
                 (
@@ -175,7 +142,6 @@ class HiroUSTProcessor:
             logger.debug(f"Parsed elements: {len(elements)} items")
 
             if output_format == "ustx":
-                # Use existing high-level text_to_ustx function
                 ustx = text_to_ustx(
                     elements,
                     project_name,
@@ -215,7 +181,6 @@ class HiroUSTProcessor:
                 logger.info("Lyrics processing complete (ustx)")
                 return ustx
 
-            # Fallback: generate simple UST using USTWriter from hiro_ust.hiro_ust_dev
             from hiro_ust.hiro_ust_dev import HiroUSTGenerator, USTWriter
 
             generator = HiroUSTGenerator()
@@ -244,7 +209,6 @@ class HiroUSTProcessor:
                     writer.add_small_tsu(root_key)
                     continue
                 hir = generator.romaji_to_hiragana(element)
-                # simple mapping: vowel -> one note
                 writer.add_note(
                     length=(
                         HiroConfig.MIN_NOTE_LEN
@@ -272,17 +236,13 @@ class HiroUSTProcessor:
             raise RuntimeError(f"Lyrics processing failed: {e}") from e
 
     def get_supported_scales(self) -> list:
-        """Get list of supported musical scales.
-
-        Returns:
-            List of scale names
-        """
         from hiro_ust.melody import SCALES
 
         return list(SCALES.keys())
 
     def get_supported_envelopes(self) -> list:
-        """Get list of supported envelope presets.
+        """
+        Get list of supported envelope presets.
 
         Returns:
             List of envelope preset names
