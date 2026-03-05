@@ -1,13 +1,5 @@
 """
-Phonetic utility functions for Japanese text processing.
-
-Provides helpers for:
-- Mora classification (consonant vs vowel)
-- Phonetic feature extraction
-- Text normalization
-- Kana type detection
-
-Used by melody generation, accent patterns, and text processing.
+Phonetic utility functions for Jap text processing.
 """
 
 from typing import List
@@ -16,10 +8,8 @@ from ..constants import VOWEL_CHARS, CONSONANT_CHARS
 
 
 class MoraAnalyzer:
-    """Analyzer for Japanese mora (syllable) properties.
-
-    A mora is the fundamental unit of Japanese phonetic structure.
-    Examples: か (ka), きゃ (kya), ん (n)
+    """
+    Analyzer for Japanese mora (syllable) properties.
     """
 
     # Common vowel prolongation markers
@@ -52,7 +42,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def get_consonant(mora: str) -> str:
-        """Extract consonant from mora.
+        """
+        Extract consonant from mora.
 
         Args:
             mora: Japanese mora string (e.g., "きゃ" → "kya")
@@ -80,7 +71,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def is_voiced(mora: str) -> bool:
-        """Check if mora starts with voiced consonant.
+        """
+        Check if mora starts with voiced consonant.
 
         Voiced consonants: が行, ぎ行, ぐ行, げ行, ご行, etc.
         (ga, gi, gu, ge, go, da, di, du, de, do, ba, bi, bu, be, bo, etc.)
@@ -97,9 +89,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def is_geminate(mora: str) -> bool:
-        """Check if mora is a geminate (small tsu, っ).
-
-        Geminates double the following consonant.
+        """
+        Check if mora is a geminate (small tsu, っ).
 
         Args:
             mora: Japanese mora
@@ -111,7 +102,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def is_nasal(mora: str) -> bool:
-        """Check if mora is nasal (ん or ん-like).
+        """
+        Check if mora is nasal (ん or ん-like).
 
         Args:
             mora: Japanese mora
@@ -123,12 +115,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def is_long_vowel(mora: str) -> bool:
-        """Check if mora is a long vowel.
-
-        Long vowels in Japanese:
-        - Doubled vowels: ああ, いい, etc.
-        - Prolongation mark: ー
-        - あ row with え, い row with い, etc.
+        """
+        Check if mora is a long vowel.
 
         Args:
             mora: Japanese mora
@@ -156,7 +144,8 @@ class MoraAnalyzer:
 
     @staticmethod
     def classify_mora_type(mora: str) -> str:
-        """Classify mora into phonetic type.
+        """
+        Classify mora into phonetic type.
 
         Args:
             mora: Japanese mora
@@ -178,28 +167,25 @@ class MoraAnalyzer:
 
 
 class AccentAnalyzer:
-    """Analyzer for Japanese accent patterns (pitch accent).
-
-    Japanese has pitch accent patterns that vary by dialect and word.
-    Common patterns: heiban (flat), atamadaka (head high), nakadaka (middle high), odaka (tail high).
+    """
+    Analyzer for Japanese accent patterns (pitch accent).
     """
 
     # Accent pattern definitions
     ACCENT_PATTERNS = {
-        "Heiban": {"description": "平板", "high_moras": []},  # All flat
-        "Atamadaka": {"description": "頭高", "high_moras": [0]},  # First high
+        "Heiban": {"description": "平板", "high_moras": []},
+        "Atamadaka": {"description": "頭高", "high_moras": [0]},
         "Nakadaka": {
             "description": "中高",
             "high_moras": [1],
-        },  # Second+ high
-        "Odaka": {"description": "尾高", "high_moras": [-1]},  # Last high
+        },
+        "Odaka": {"description": "尾高", "high_moras": [-1]},
     }
 
     @staticmethod
-    def get_accent_moras(
-        accent_type: str, word_length: int
-    ) -> List[int]:
-        """Get high-pitch mora positions for accent type.
+    def get_accent_moras(accent_type: str, word_length: int) -> List[int]:
+        """
+        Get high-pitch mora positions for accent type.
 
         Args:
             accent_type: One of "Heiban", "Atamadaka", "Nakadaka", "Odaka"
@@ -214,7 +200,7 @@ class AccentAnalyzer:
         pattern = AccentAnalyzer.ACCENT_PATTERNS[accent_type]
         moras = pattern["high_moras"]
 
-        # Handle negative indices (from end)
+        # Negative indices
         result = []
         for m in moras:
             if m < 0:
@@ -226,7 +212,8 @@ class AccentAnalyzer:
 
     @staticmethod
     def should_be_high(mora_position: int, accent_type: str, word_length: int) -> bool:
-        """Check if mora should be high pitch.
+        """
+        Check if mora should be high pitch.
 
         Args:
             mora_position: Position in word (0-based)
@@ -241,9 +228,8 @@ class AccentAnalyzer:
 
 
 class VowelHarmony:
-    """Analyzer for Japanese vowel harmony patterns.
-
-    Helps with phoneme-level melody decisions based on vowel characteristics.
+    """
+    Analyzer for Japanese vowel harmony patterns.
     """
 
     # Vowel properties
@@ -257,9 +243,8 @@ class VowelHarmony:
 
     @staticmethod
     def get_vowel_openness(mora: str) -> int:
-        """Get vowel openness (0=closed, 4=open).
-
-        Open vowels (a, o) typically get longer durations.
+        """
+        Get vowel openness (0=closed, 4=open).
 
         Args:
             mora: Mora containing vowel
@@ -270,20 +255,19 @@ class VowelHarmony:
         vowel = MoraAnalyzer.get_vowel(mora)
 
         openness_map = {
-            "あ": 4,  # Most open
+            "あ": 4,
             "お": 3,
             "え": 2,
             "い": 1,
-            "う": 0,  # Most closed
+            "う": 0,
         }
 
         return openness_map.get(vowel, 2)
 
     @staticmethod
     def is_back_vowel(mora: str) -> bool:
-        """Check if mora contains back vowel (a, o, u).
-
-        Back vowels have different resonance characteristics.
+        """
+        Check if mora contains back vowel (a, o, u).
 
         Args:
             mora: Mora containing vowel
@@ -296,7 +280,8 @@ class VowelHarmony:
 
     @staticmethod
     def is_high_vowel(mora: str) -> bool:
-        """Check if mora contains high vowel (i, u).
+        """
+        Check if mora contains high vowel (i, u).
 
         Args:
             mora: Mora containing vowel
@@ -309,16 +294,15 @@ class VowelHarmony:
 
 
 class PhoneticNormalizer:
-    """Normalizer for phonetic text variants.
+    """
+    Normalizer for phonetic text variants.
 
-    Handles different input formats and normalizes them.
     """
 
     @staticmethod
     def normalize_small_tsu_spacing(text: str) -> str:
-        """Normalize small tsu (っ) spacing.
-
-        Ensures っ is properly separated and recognized.
+        """
+        Normalize small tsu (っ) spacing.
 
         Args:
             text: Input text
@@ -326,7 +310,6 @@ class PhoneticNormalizer:
         Returns:
             Normalized text
         """
-        # Remove extra spaces around っ
         import re
 
         text = re.sub(r"\s*っ\s*", "っ", text)
@@ -334,7 +317,8 @@ class PhoneticNormalizer:
 
     @staticmethod
     def normalize_choonpu(text: str) -> str:
-        """Normalize prolongation marks (ー choonpu).
+        """
+        Normalize prolongation marks (ー choonpu).
 
         Args:
             text: Input text
@@ -342,15 +326,15 @@ class PhoneticNormalizer:
         Returns:
             Normalized text
         """
-        # Ensure ー is recognized
-        text = text.replace("−", "ー")  # Unicode minus sign
-        text = text.replace("─", "ー")  # Horizontal bar
-        text = text.replace("-", "ー")  # Hyphen (context-dependent)
+        text = text.replace("−", "ー")
+        text = text.replace("─", "ー")
+        text = text.replace("-", "ー")
         return text
 
     @staticmethod
     def normalize_whitespace(text: str) -> str:
-        """Normalize whitespace variants.
+        """
+        Normalize whitespace variants.
 
         Args:
             text: Input text
@@ -358,9 +342,8 @@ class PhoneticNormalizer:
         Returns:
             Text with normalized spaces
         """
-        # Normalize full-width spaces to regular spaces
         text = text.replace("　", " ")
-        # Remove multiple spaces
+
         import re
 
         text = re.sub(r"\s+", " ", text)
@@ -373,5 +356,3 @@ __all__ = [
     "VowelHarmony",
     "PhoneticNormalizer",
 ]
-
-
