@@ -1,15 +1,14 @@
-"""CLI entrypoint for Hiro UST.
-"""
+"""CLI entrypoint for Hiro UST."""
 
 import sys
 from pathlib import Path
 import tkinter as tk
 
-root = Path(__file__).resolve().parents[1]  # src/hiro_ust/.. -> src
+root = Path(__file__).resolve().parents[1]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-from hiro_ust.hiro_ust_dev import USTGeneratorApp, HiroConfig  # type: ignore
+from hiro_ust.hiro_ust_dev import USTGeneratorApp, HiroConfig
 
 
 def main(argv=None, debug=False):
@@ -17,9 +16,9 @@ def main(argv=None, debug=False):
     root_tk = tk.Tk()
     app = USTGeneratorApp(root_tk)
     if debug:
-        print("[hiro_ust.cli] GUI initialized (debug mode)")
+        print("[hiro_ust.cli] GUI Init (debug mode)")
         return app
-    # Normal run: start event loop
+
     root_tk.mainloop()
 
 
