@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 def build_mora_trie() -> dict:
     """Build trie structure from MORA_DATA for efficient text matching.
 
-    The trie enables fast matching of mora sequences in Japanese text.
+    The trie enables fast matching of mora sequences in Jap text.
     Each node has:
         - child nodes for each character
         - 'end': True if node marks end of mora
