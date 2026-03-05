@@ -36,7 +36,7 @@ from .widgets import (
     LabeledCombobox,
     LabeledScale,
     CheckbuttonGroup,
-    ParameterPanel,
+    ParamPanel,
     ProgressBar,
     PresetManager,
 )
@@ -52,7 +52,7 @@ __all__ = [
     "LabeledCombobox",
     "LabeledScale",
     "CheckbuttonGroup",
-    "ParameterPanel",
+    "ParamPanel",
     "ProgressBar",
     "PresetManager",
 ]
@@ -66,7 +66,7 @@ class USTGeneratorApp:
     """
 
     def __init__(self, root):
-        """Initialize the application window.
+        """Init the application window.
 
         Args:
             root: Tkinter root window
@@ -93,15 +93,12 @@ class USTGeneratorApp:
         except Exception as e:
             logger.warning(f"Failed to set window icon: {e}")
 
-        # Initialize UI components
+        # Init UI components
         self._create_widgets()
         logger.info("UI initialization complete")
 
     def _create_widgets(self) -> None:
         """Create and layout all UI widgets."""
-        # TODO: Implement UI widget creation
-        # This would be extracted from hiro_ust_dev.py USTGeneratorApp.__init__
-        # For now, just create a basic window
 
         frame = ttk.Frame(self.root)
         frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -119,19 +116,16 @@ class USTGeneratorApp:
     def generate_ust(self) -> None:
         """Generate UST file from current settings."""
         logger.info("Generate UST button clicked")
-        # TODO: Implement UST generation
         pass
 
     def save_ust(self) -> None:
         """Save UST file to disk."""
         logger.info("Save UST button clicked")
-        # TODO: Implement save dialog
         pass
 
     def preview_phonemes(self) -> None:
         """Show phoneme preview for lyrics."""
         logger.info("Preview phonemes button clicked")
-        # TODO: Implement preview
         pass
 
 
