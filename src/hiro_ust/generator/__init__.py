@@ -1,14 +1,11 @@
 """
 UST and USTX file generation module.
 
-Handles conversion of note sequences to UST (Uta Synthesizer Tool)
-and USTX (OpenUtau) file formats.
-
 Components:
-  - USTWriter: Generates UST format output
-  - USTXWriter: Generates USTX format output
+  - USTWriter: Gen UST format output
+  - USTXWriter: Gen USTX format output
   - NoteGenerator: Note-level generation logic
-  - PitchBendCalculator: Pitch bend parameter calculation
+  - PitchBendCalculator: Pitch bend param calculation
   - EnvelopeCalculator: Envelope and intensity calculation
 """
 
@@ -42,14 +39,12 @@ __all__ = [
 
 
 class USTWriter:
-    """Generates UST (Uta Synthesizer Tool) format files.
+    """
+    Gen UST (Uta Synthesizer Tool) format files.
 
-    UST format is a plain-text music notation format commonly used with
-    UTAU (Utau Synthesizer) for voice synthesis.
-
-    Attributes:
-        lines (list): Accumulated UST format lines
-        note_id (int): Sequential ID counter for notes
+    Attr:
+        lines (list): Accum UST format lines
+        note_id (int): Seq ID counter for notes
         project_name (str): Name of the project
         tempo (float): Tempo in BPM
     """
@@ -96,7 +91,8 @@ class USTWriter:
         pbw: int = 0,
         flags: str = "",
     ) -> None:
-        """Add a music note with phonetic and timing information.
+        """
+        Add a music note with phonetic and timing info.
 
         Args:
             length: Duration in ticks
@@ -128,7 +124,6 @@ class USTWriter:
         self.note_id += 1
 
     def finalize(self) -> str:
-        """Finalize and return complete UST file content as string."""
         self.lines.append(TRACK_END)
         return "\n".join(self.lines)
 
