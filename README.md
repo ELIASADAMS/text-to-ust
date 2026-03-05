@@ -74,7 +74,7 @@ python hiro_ust.py
 
 ## 🎚️ Controls
 
-| Section         | Parameters                                     | Effect                |
+| Section         | Params                                     | Effect                |
 |-----------------|------------------------------------------------|-----------------------|
 | **⏱️ Timing**   | Tempo, Base Length, Line/Section Pauses        | Song structure        |
 | **🎤 Voice**    | Soprano(67)-Bass(48), Scale                    | Pitch range + palette |
