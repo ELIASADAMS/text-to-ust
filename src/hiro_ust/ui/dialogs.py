@@ -1,13 +1,5 @@
 """
 File dialog utilities for UST/USTX file operations.
-
-Provides reusable dialogs for:
-- Saving UST/USTX files
-- Opening projects
-- Exporting configurations
-- Selecting voice banks
-
-Separates dialog logic from main GUI application.
 """
 
 import os
@@ -24,7 +16,11 @@ class FileDialog:
     FILE_TYPES = {
         "ust": ("UST Files (*.ust)", "*.ust"),
         "ustx": ("USTX Files (*.ustx)", "*.ustx"),
-        "both": [("UST/USTX Files", "*.ust *.ustx"), ("UST Files", "*.ust"), ("USTX Files", "*.ustx")],
+        "both": [
+            ("UST/USTX Files", "*.ust *.ustx"),
+            ("UST Files", "*.ust"),
+            ("USTX Files", "*.ustx"),
+        ],
         "text": ("Text Files (*.txt)", "*.txt"),
         "json": ("JSON Files (*.json)", "*.json"),
         "yaml": ("YAML Files (*.yaml *.yml)", "*.yaml *.yml"),
@@ -60,7 +56,7 @@ class FileDialog:
 
     @staticmethod
     def save_ust(
-        parent_widget = None,
+        parent_widget=None,
         initial_name: str = "Hiro_Main",
         initial_dir: Optional[str] = None,
     ) -> Optional[str]:
@@ -89,7 +85,7 @@ class FileDialog:
 
     @staticmethod
     def save_ustx(
-        parent_widget = None,
+        parent_widget=None,
         initial_name: str = "Hiro_Main",
         initial_dir: Optional[str] = None,
     ) -> Optional[str]:
@@ -118,7 +114,7 @@ class FileDialog:
 
     @staticmethod
     def save_preset(
-        parent_widget = None,
+        parent_widget=None,
         initial_name: str = "My_Preset",
         initial_dir: Optional[str] = None,
     ) -> Optional[str]:
@@ -147,7 +143,7 @@ class FileDialog:
 
     @staticmethod
     def open_preset(
-        parent_widget = None,
+        parent_widget=None,
         initial_dir: Optional[str] = None,
     ) -> Optional[str]:
         """Open file dialog for loading preset.
@@ -172,7 +168,7 @@ class FileDialog:
 
     @staticmethod
     def select_ust_file(
-        parent_widget = None,
+        parent_widget=None,
         initial_dir: Optional[str] = None,
     ) -> Optional[str]:
         """Open file dialog for selecting existing UST file.
@@ -200,7 +196,7 @@ class SaveDialog:
     """Dialog for configuring save options."""
 
     @staticmethod
-    def ask_save_format(parent_widget = None) -> Optional[str]:
+    def ask_save_format(parent_widget=None) -> Optional[str]:
         """Ask user to choose between UST and USTX format.
 
         Args:
@@ -222,7 +218,7 @@ class SaveDialog:
         return "ustx" if result else "ust" if result is False else None
 
     @staticmethod
-    def ask_save_location(parent_widget = None) -> Optional[str]:
+    def ask_save_location(parent_widget=None) -> Optional[str]:
         """Ask user to select save location and filename.
 
         Args:
@@ -248,9 +244,9 @@ class DialogMessages:
     def show_info(
         title: str,
         message: str,
-        parent_widget = None,
+        parent_widget=None,
     ) -> None:
-        """Show information dialog.
+        """Show info dialog.
 
         Args:
             title: Dialog title
@@ -263,7 +259,7 @@ class DialogMessages:
     def show_warning(
         title: str,
         message: str,
-        parent_widget = None,
+        parent_widget=None,
     ) -> None:
         """Show warning dialog.
 
@@ -278,7 +274,7 @@ class DialogMessages:
     def show_error(
         title: str,
         message: str,
-        parent_widget = None,
+        parent_widget=None,
     ) -> None:
         """Show error dialog.
 
@@ -293,7 +289,7 @@ class DialogMessages:
     def ask_yes_no(
         title: str,
         message: str,
-        parent_widget = None,
+        parent_widget=None,
     ) -> bool:
         """Ask yes/no question.
 
@@ -308,7 +304,7 @@ class DialogMessages:
         return messagebox.askyesno(title, message, parent=parent_widget)
 
     @staticmethod
-    def ask_save_changes(parent_widget = None) -> Optional[bool]:
+    def ask_save_changes(parent_widget=None) -> Optional[bool]:
         """Ask if user wants to save changes.
 
         Returns:
@@ -324,7 +320,7 @@ class DialogMessages:
     @staticmethod
     def show_file_saved(
         filepath: str,
-        parent_widget = None,
+        parent_widget=None,
     ) -> None:
         """Show file saved confirmation.
 
@@ -344,7 +340,7 @@ class DialogMessages:
     def show_file_error(
         filepath: str,
         error: Exception,
-        parent_widget = None,
+        parent_widget=None,
     ) -> None:
         """Show file operation error.
 
@@ -366,5 +362,3 @@ __all__ = [
     "SaveDialog",
     "DialogMessages",
 ]
-
-
