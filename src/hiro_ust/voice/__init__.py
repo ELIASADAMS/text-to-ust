@@ -1,11 +1,11 @@
 """
 Voice and prosody module.
 
-Manages voice-specific settings, presets, and phonetic parameters.
+Manages voice-specific settings, presets, and phonetic params.
 
 Components:
   - Key roots: Voice key mappings
-  - Presets: Voice and parameter presets
+  - Presets: Voice and param presets
   - Phonetic utilities: Voice-specific phonetic processing
 """
 
