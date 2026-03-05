@@ -5,7 +5,7 @@ Provides custom widgets for:
 - Labeled input fields
 - Preset management controls
 - Progress indicators
-- Parameter adjustment sliders
+- Param adjustment sliders
 - Export/import buttons
 
 Reduces code duplication in main GUI.
@@ -35,7 +35,7 @@ class LabeledEntry(ttk.Frame):
         width: int = 12,
         **kwargs,
     ):
-        """Initialize labeled entry.
+        """Init labeled entry.
 
         Args:
             parent: Parent widget
@@ -82,7 +82,7 @@ class LabeledSpinbox(ttk.Frame):
         width: int = 8,
         **kwargs,
     ):
-        """Initialize labeled spinbox.
+        """Init labeled spinbox.
 
         Args:
             parent: Parent widget
@@ -136,7 +136,7 @@ class LabeledCombobox(ttk.Frame):
         width: int = 15,
         **kwargs,
     ):
-        """Initialize labeled combobox.
+        """Init labeled combobox.
 
         Args:
             parent: Parent widget
@@ -191,7 +191,7 @@ class LabeledScale(ttk.Frame):
         command: Optional[Callable] = None,
         **kwargs,
     ):
-        """Initialize labeled scale.
+        """Init labeled scale.
 
         Args:
             parent: Parent widget
@@ -250,7 +250,7 @@ class CheckbuttonGroup(ttk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, title: str = "", **kwargs):
-        """Initialize checkbutton group.
+        """Init checkbutton group.
 
         Args:
             parent: Parent widget
@@ -311,14 +311,14 @@ class CheckbuttonGroup(ttk.Frame):
         return {name: var.get() for name, var in self.variables.items()}
 
 
-class ParameterPanel(ttk.LabelFrame):
-    """Organized panel for related parameters.
+class ParamPanel(ttk.LabelFrame):
+    """Organized panel for related params.
 
     Groups labeled controls with consistent spacing.
     """
 
     def __init__(self, parent: tk.Widget, title: str = "", **kwargs):
-        """Initialize parameter panel.
+        """Init param panel.
 
         Args:
             parent: Parent widget
@@ -405,7 +405,7 @@ class ProgressBar(ttk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, **kwargs):
-        """Initialize progress bar."""
+        """Init progress bar."""
         super().__init__(parent, **kwargs)
 
         header = ttk.Frame(self)
@@ -448,7 +448,7 @@ class PresetManager(ttk.Frame):
         on_load: Optional[Callable] = None,
         **kwargs,
     ):
-        """Initialize preset manager.
+        """Init preset manager.
 
         Args:
             parent: Parent widget
@@ -500,10 +500,7 @@ __all__ = [
     "LabeledCombobox",
     "LabeledScale",
     "CheckbuttonGroup",
-    "ParameterPanel",
+    "ParamPanel",
     "ProgressBar",
     "PresetManager",
 ]
-
-
-
