@@ -1,308 +1,111 @@
-"""
-Note-level generation logic for UST/USTX files.
-
-"""
+"""Note-level generation and pitch-bend utilities."""
 
 import random
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from ..config import HiroConfig
 from ..constants import VOWEL_CHARS, CONSONANT_CHARS
-from ..melody.scales import SCALES
 from ..melody.intone_utils import get_intone_settings
+from ..melody.scales import SCALES
 
 
 class NoteGenerator:
-    """
-    Generator for individual note params.
-
-    """
-
-    def __init__(self, base_length: int = 240, length_var: float = 0.3):
-        """
-        Init note generator.
-
-        Args:
-            base_length: Base note length in ticks (480 = quarter note)
-            length_var: Length variation factor (0.0-1.0)
-        """
-        self.base_length = base_length
-        self.length_var = length_var
+    def __init__(self, base_length: int = 240, length_var: float = 0.3, seed: int | None = None):
+        self.base_length = int(base_length)
+        self.length_var = float(length_var)
+        self.rng = random.Random(seed)
         self.vowel_chars = VOWEL_CHARS
         self.consonant_chars = CONSONANT_CHARS
 
-    def get_note_length(
-        self,
-        phoneme: str,
-        length_factor: float = 1.0,
-        melody_brain: Optional[object] = None,
-    ) -> int:
-        """
-        Calculate note length with variation based on phoneme type.
-
-        Args:
-            phoneme: Romaji phoneme string (e.g., 'a', 'ka', '+')
-            length_factor: Multiplier for length (for stretching)
-            melody_brain: Optional MelodyBrain for context
-
-        Returns:
-            Note length in ticks, bounded by HiroConfig limits
-        """
-        # Continuation notes get fixed short length
+    def get_note_length(self, phoneme: str, length_factor: float = 1.0, melody_brain: Optional[object] = None) -> int:
         if phoneme == "+":
             factor = 0.6
-            length = int(self.base_length * factor * length_factor)
-            return max(HiroConfig.MIN_NOTE_LEN, min(HiroConfig.MAX_NOTE_LEN, length))
-
-        # Get vowel/consonant chars from melody_brain if available
-        vowel_chars = (
-            getattr(melody_brain, "VOWEL_CHARS", VOWEL_CHARS)
-            if melody_brain
-            else VOWEL_CHARS
-        )
-        consonant_chars = (
-            getattr(melody_brain, "CONSONANT_CHARS", CONSONANT_CHARS)
-            if melody_brain
-            else CONSONANT_CHARS
-        )
-
-        phoneme_char = phoneme[0] if len(phoneme) > 0 else "a"
-
-        # Apply different length factors based on phoneme type
-        if phoneme_char in vowel_chars:
-            factor = 1.0 + random.uniform(-self.length_var, self.length_var * 0.3)
-        elif phoneme_char in consonant_chars:
-            factor = 0.5 + random.uniform(0, self.length_var * 1.5)
         else:
-            factor = 0.7 + random.uniform(-self.length_var * 0.2, self.length_var * 0.2)
+            vowel_chars = getattr(melody_brain, "VOWEL_CHARS", self.vowel_chars) if melody_brain else self.vowel_chars
+            consonant_chars = getattr(melody_brain, "CONSONANT_CHARS", self.consonant_chars) if melody_brain else self.consonant_chars
+            first = phoneme[0] if phoneme else "a"
+            if first in vowel_chars:
+                factor = 1.0 + self.rng.uniform(-self.length_var, self.length_var * 0.3)
+            elif first in consonant_chars:
+                factor = 0.5 + self.rng.uniform(0, self.length_var * 1.5)
+            else:
+                factor = 0.7 + self.rng.uniform(-self.length_var * 0.2, self.length_var * 0.2)
 
         length = int(self.base_length * factor * length_factor)
         return max(HiroConfig.MIN_NOTE_LEN, min(HiroConfig.MAX_NOTE_LEN, length))
 
-    def get_random_pitch(
-        self,
-        root_key: int,
-        scale_name: str,
-        intone_level: str = "Medium (2)",
-        flat_mode: bool = False,
-        quartertone_mode: bool = False,
-        use_motifs: bool = True,
-        chord_mode: bool = False,
-    ) -> float:
-        """
-        Generate random pitch within scale constr.
-
-        Args:
-            root_key: MIDI note number for root
-            scale_name: Name of scale (e.g., "Major Pentatonic")
-            intone_level: Intone setting ("Tight", "Medium", "Wide", "Wild")
-            flat_mode: If True, return flat/monotone pitch
-            quartertone_mode: If True, allow microtones
-            use_motifs: If True, use pitch motif memory
-            chord_mode: If True, generate chord-based pitches
-
-        Returns:
-            MIDI note number (may be float for microtones)
-        """
+    def get_random_pitch(self, root_key: int, scale_name: str, intone_level: str = "Medium (2)", flat_mode: bool = False, quartertone_mode: bool = False, use_motifs: bool = True, chord_mode: bool = False) -> float:
         scale = SCALES.get(scale_name, SCALES["Major"])
-
-        # Flat mode returns root + fifth (safe, neutral)
         if flat_mode:
             return root_key + 5
 
-        # Start with random scale degree
-        base_semitone = random.choice(scale)
-
-        # Apply motif memory
+        base_semitone = self.rng.choice(scale)
         if use_motifs:
-            if not hasattr(self, "_recent_notes"):
-                self._recent_notes = []
-            recent = self._recent_notes
-            if len(recent) >= 2:
-                # Continue motif from previous notes
-                motif_continue = recent[-1]
-                base_semitone = min(scale, key=lambda x: abs(x - (motif_continue % 12)))
-            self._recent_notes.append(base_semitone)
-            # Keep only last 4 notes for tracking
-            if len(self._recent_notes) > 4:
-                self._recent_notes = self._recent_notes[-4:]
+            recent = getattr(self, "_recent_notes", [])
+            if recent:
+                base_semitone = min(scale, key=lambda x: abs(x - (recent[-1] % 12)))
+            recent.append(base_semitone)
+            self._recent_notes = recent[-4:]
 
-        # Apply chord constr
         settings = get_intone_settings(intone_level)
         if chord_mode:
-            # Generate I-IV-V chord
-            chord_root = {0: 0, 1: 3, 2: 5}.get(random.randint(0, 2), 0)
-            chord = [
-                n for n in [(chord_root + i) % 12 for i in [0, 4, 7]] if n in scale
-            ]
-            base_semitone = random.choice(chord or scale)
+            chord_root = self.rng.choice([0, 3, 5])
+            chord = [n for n in ((chord_root + i) % 12 for i in [0, 4, 7]) if n in scale]
+            base_semitone = self.rng.choice(chord or scale)
 
-        # Apply leap limits from intone settings
         if settings["leap"] < 3:
             base_semitone = min(base_semitone, settings["leap"] * 2)
 
-        # Apply microtones
-        if quartertone_mode and random.random() < 0.5:
-            base_semitone += random.choice([0, 0.5, -0.5])
-
+        if quartertone_mode and self.rng.random() < 0.5:
+            base_semitone += self.rng.choice([0, 0.5, -0.5])
         return root_key + base_semitone
 
-    def create_stretch_notes(
-        self,
-        phoneme: str,
-        stretch_prob: float = 0.25,
-        max_stretch: int = 3,
-        melody_brain: Optional[object] = None,
-    ) -> List[Tuple[str, float]]:
-        """
-        Create stretched note variations for a phoneme.
-
-        Args:
-            phoneme: Hiragana phoneme string
-            stretch_prob: Probability of stretching (0.0-1.0)
-            max_stretch: Maximum continuation notes to add
-            melody_brain: Optional MelodyBrain for vowel definitions
-
-        Returns:
-            List of (phoneme, length_factor) tuples for stretching
-        """
-        vowel_chars = (
-            getattr(melody_brain, "VOWEL_CHARS", VOWEL_CHARS)
-            if melody_brain
-            else VOWEL_CHARS
-        )
-
-        # Double vowels get extended
+    def create_stretch_notes(self, phoneme: str, stretch_prob: float = 0.25, max_stretch: int = 3, melody_brain: Optional[object] = None) -> List[Tuple[str, float]]:
+        vowel_chars = getattr(melody_brain, "VOWEL_CHARS", self.vowel_chars) if melody_brain else self.vowel_chars
         if len(phoneme) >= 2 and phoneme[0] == phoneme[1] and phoneme[0] in vowel_chars:
             return [(phoneme[0], 1.8)]
-
-        # Single vowels may be stretched with continuation
-        if (
-            len(phoneme) == 1
-            and phoneme in vowel_chars
-            and random.random() < (stretch_prob + 0.5)
-        ):
-            stretches = random.randint(1, max_stretch)
+        if len(phoneme) == 1 and phoneme in vowel_chars and self.rng.random() < (stretch_prob + 0.5):
+            stretches = self.rng.randint(1, max(0, max_stretch))
             return [(phoneme, 1.2)] + [("+", 0.6)] * stretches
-
-        # No stretching
         return [(phoneme, 1.0)]
 
 
 class PitchBendCalculator:
-    """Calculator for pitch bend (PBS/PBW) params.
-
-    Gen pitch bend curves for accents, microtones, and special effects.
-    """
-
     @staticmethod
-    def calculate_quartertone_bend(
-        note_num: float,
-    ) -> Tuple[str, str]:
-        """Calculate bend for quartertone pitch.
-
-        Args:
-            note_num: MIDI note with fractional part (e.g., 60.5)
-
-        Returns:
-            Tuple of (pbs, pbw) strings
-        """
+    def calculate_quartertone_bend(note_num: float) -> Tuple[str, str]:
         fraction = note_num - int(note_num)
-        if fraction == 0:
+        if abs(fraction) < 1e-9:
             return "0;0", "0"
-
-        bend_amount = int(fraction * 50)  # Convert to cents
+        # UTAU pitch bend is expressed relative to the integer MIDI note.
+        # PBS=50 gives 100 cents over 50 bend units, so a quarter-tone is 25.
+        bend_amount = int(round(fraction * HiroConfig.PBS_SCALE))
         return f"0;{bend_amount}", "10"
 
     @staticmethod
-    def calculate_accent_bend(
-        melody_brain: object,
-        note_length: int,
-        accent: str,
-    ) -> Tuple[str, str, str, str]:
-        """
-        Calculate bend for accent pattern.
-
-        Args:
-            melody_brain: MelodyBrain instance with accent state
-            note_length: Note length in ticks
-            accent: Accent type (e.g., "Odaka", "Atamadaka")
-
-        Returns:
-            Tuple of (pbs, pbw, pby, pbm) strings
-        """
-        pbs = "0;0"
-        pbw = "0"
-        pby = "0"
-        pbm = ","
-
-        # Handle pitch drops
-        if (
-            hasattr(melody_brain, "is_high_pitch")
-            and not melody_brain.is_high_pitch
-            and hasattr(melody_brain, "prev_high_pitch")
-            and melody_brain.prev_high_pitch
-        ):
+    def calculate_accent_bend(melody_brain: object, note_length: int, accent: str) -> Tuple[str, str, str, str]:
+        pbs, pbw, pby, pbm = "0;0", "0", "0", ","
+        if (getattr(melody_brain, "is_high_pitch", False) is False and
+                getattr(melody_brain, "prev_high_pitch", False)):
             drop_strength = random.choice([-50, -40, -35, -30, -25])
             pbs = f"0;{drop_strength}"
-            pbw = "0"
-
-            # Add recovery curve for long notes
             if note_length > 200:
                 pbw = f"25,50,{int(note_length * 0.15)}"
-                pby = f"-15,-15,0"
-
-        # Odaka
-        elif accent == "Odaka" and hasattr(melody_brain, "word_pos"):
-            if melody_brain.word_pos == 2:
-                pbs = f"0;{random.choice([25, 35, 45])}"
-                pbw = "20"
-
-        # First mora high pitch
-        elif hasattr(melody_brain, "word_pos") and hasattr(
-            melody_brain, "is_high_pitch"
-        ):
-            if melody_brain.word_pos == 1 and melody_brain.is_high_pitch:
-                pbs = f"0;{random.choice([15, 20])}"
-                pbw = "0"
-
+                pby = "-15,-15,0"
+        elif accent == "Odaka" and getattr(melody_brain, "word_pos", 0) == 2:
+            pbs = f"0;{random.choice([25, 35, 45])}"
+            pbw = "20"
+        elif getattr(melody_brain, "word_pos", 0) == 1 and getattr(melody_brain, "is_high_pitch", False):
+            pbs = f"0;{random.choice([15, 20])}"
         return pbs, pbw, pby, pbm
 
 
 class EnvelopeCalculator:
-    """
-    Calculator for note envelope params.
-    """
-
     @staticmethod
-    def calculate_intensity(
-        melody_brain: object,
-        intensity_base: int,
-        note_position: int = 0,
-        phrase_length: int = 12,
-    ) -> int:
-        """Calculate intensity (volume) for a note.
-
-        Args:
-            melody_brain: MelodyBrain with current note
-            intensity_base: Base intensity (50-120)
-            note_position: Position in phrase (0-phrase_length)
-            phrase_length: Total phrase length
-
-        Returns:
-            Intensity value (0-200)
-        """
+    def calculate_intensity(melody_brain: object, intensity_base: int, note_position: int = 0, phrase_length: int = 12) -> int:
         phrase_progress = note_position / max(1, phrase_length)
-        last_note_safe = getattr(melody_brain, "last_note", 0)
-
-        melody_offset = melody_brain.get_intensity(last_note_safe, phrase_progress)
-        intensity = max(50, min(120, intensity_base + (melody_offset - 80)))
-
-        return int(intensity)
+        note_height = getattr(melody_brain, "last_note", 0)
+        melody_offset = melody_brain.get_intensity(note_height, phrase_progress)
+        return int(max(HiroConfig.RENDER_INTENSITY_MIN, min(HiroConfig.RENDER_INTENSITY_MAX, intensity_base + melody_offset - 80)))
 
 
-__all__ = [
-    "NoteGenerator",
-    "PitchBendCalculator",
-    "EnvelopeCalculator",
-]
+__all__ = ["NoteGenerator", "PitchBendCalculator", "EnvelopeCalculator"]
