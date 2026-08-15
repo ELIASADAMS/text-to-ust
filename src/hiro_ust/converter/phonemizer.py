@@ -2,8 +2,6 @@
 
 import re
 
-from .hiragana_map import HIRAGANA_MAP
-
 ROMAJI_MAP = {
     "a":"あ","i":"い","u":"う","e":"え","o":"お","ā":"あー","ī":"いー","ū":"うー","ē":"えー","ō":"おー",
     "ka":"か","ki":"き","ku":"く","ke":"け","ko":"こ","ga":"が","gi":"ぎ","gu":"ぐ","ge":"げ","go":"ご",
@@ -22,6 +20,7 @@ ROMAJI_MAP = {
 
 ENGLISH_VOWEL_MAP = {"a":"あ","e":"え","i":"い","o":"お","u":"う"}
 ENGLISH_CONSONANT_MAP = {"b":"b","k":"k","g":"g","d":"d","t":"t","p":"p","m":"m","n":"ん","r":"r","s":"s","h":"h","f":"f","v":"v","ch":"ち","sh":"し","j":"じ"}
+PUNCTUATION = set("。、！？,!?;:…")
 
 
 class Phonemizer:
@@ -43,9 +42,6 @@ class Phonemizer:
         text = text.strip().lower()
         if not text:
             return []
-
-        # Punctuation is intentionally preserved. It is useful to the phrase parser
-        # for rests/cadences and must not be destroyed at the phonemizer boundary.
         if self.mode == "english":
             return self._english_to_phonemes(text)
         if self.mode == "japanese" and self._contains_japanese(text):
@@ -54,29 +50,39 @@ class Phonemizer:
 
     def _hiragana_to_phonemes(self, text: str):
         from hiro_ust.converter import HiroUSTGenerator
-        return HiroUSTGenerator().hiragana_to_romaji(text)
+        generator = HiroUSTGenerator()
+        result = []
+        chunk = []
+        for char in text:
+            if char in PUNCTUATION:
+                if chunk:
+                    result.extend(generator.hiragana_to_romaji("".join(chunk)))
+                    chunk = []
+                result.append(char)
+            else:
+                chunk.append(char)
+        if chunk:
+            result.extend(generator.hiragana_to_romaji("".join(chunk)))
+        return result
 
     def _romaji_to_phonemes(self, text: str):
         from hiro_ust.converter import HiroUSTGenerator
         generator = HiroUSTGenerator()
         phonemes = []
         for token in re.findall(r"[a-zāīūēō-]+|[^\s]", text):
-            if token in "。、！？,!?…":
+            if token in PUNCTUATION:
                 phonemes.append(token)
                 continue
             i = 0
             hiragana = []
             while i < len(token):
-                matched = False
                 for length in (4, 3, 2, 1):
                     candidate = token[i:i + length]
                     if candidate in ROMAJI_MAP:
                         hiragana.append(ROMAJI_MAP[candidate])
                         i += length
-                        matched = True
                         break
-                if not matched:
-                    # Keep unknown symbols visible instead of silently dropping them.
+                else:
                     hiragana.append(token[i])
                     i += 1
             phonemes.extend(generator.hiragana_to_romaji("".join(hiragana)))
@@ -86,23 +92,18 @@ class Phonemizer:
         """Very small grapheme approximation; not a full English phonemizer."""
         phonemes = []
         for word in re.findall(r"[a-z']+|[^\s]", text):
-            if word in ".,!?;:…":
+            if word in PUNCTUATION:
                 phonemes.append(word)
                 continue
             i = 0
             while i < len(word):
-                matched = False
-                for cluster in ("ch", "sh"):
-                    if word.startswith(cluster, i):
-                        phonemes.append(ENGLISH_CONSONANT_MAP[cluster])
-                        i += 2
-                        matched = True
-                        break
-                if matched:
-                    continue
-                char = word[i]
-                phonemes.append(ENGLISH_VOWEL_MAP.get(char, ENGLISH_CONSONANT_MAP.get(char, char)))
-                i += 1
+                if word[i:i + 2] in {"ch", "sh"}:
+                    phonemes.append(ENGLISH_CONSONANT_MAP[word[i:i + 2]])
+                    i += 2
+                else:
+                    char = word[i]
+                    phonemes.append(ENGLISH_VOWEL_MAP.get(char, ENGLISH_CONSONANT_MAP.get(char, char)))
+                    i += 1
         return phonemes
 
 
