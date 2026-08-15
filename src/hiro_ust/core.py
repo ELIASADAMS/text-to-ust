@@ -1,258 +1,105 @@
-"""
-Core API for Hiro UST Generator.
-    """
+"""Public core API for the Hiro UST generator."""
 
-    """
-    Configuration for UST generation.
-
-    Attr:
-        tempo: BPM (60-240)
-        base_length: Base note length in ticks
-        root_key: MIDI note for voice root
-        scale: Musical scale name
-        intone_level: Intone level
-        length_var: Length variation factor
-        stretch_prob: Probability of note stretching
-        pre_utterance: Pre-utterance time in ms
-        voice_overlap: Voice overlap time in ms
-        intensity_base: Base intensity (50-120)
-        envelope: Envelope preset name
-        flat_mode: Monotone mode
-        quartertone_mode: Enable microtones
-        lyrical_mode: Use intelligent melody
-        use_motifs: Use motif memory
-        seed: Random seed for reproducibility
-    """
-
-    tempo: float = 120.0
-    base_length: int = 240
-    root_key: int = 60
-    scale: str = "Major Pentatonic"
-    intone_level: str = "Medium (2)"
-    length_var: float = 0.3
-    stretch_prob: float = 0.25
-    pre_utterance: int = 25
-    voice_overlap: int = 10
-    intensity_base: int = 80
-    envelope: str = "Pop"
-    flat_mode: bool = False
-    quartertone_mode: bool = False
-    lyrical_mode: bool = True
-    use_motifs: bool = True
-    seed: int = 1234
+from .config import GeneratorConfig, HiroConfig
+from .constants import VOWEL_CHARS, CONSONANT_CHARS
+from .converter import HiroUSTGenerator, Phonemizer
+from .generator import USTWriter
+from .melody import MelodyBrain, SCALES
+from .voice.key_roots import KEY_ROOTS
 
 
 class HiroUSTProcessor:
+    """High-level facade for converting lyrics into UST/USTX output."""
 
-    def __init__(self, config: GeneratorConfig):
-        """
-        Init processor with configuration.
-
-        Args:
-            config: GeneratorConfig instance with all settings
-        """
-        self.config = config
-        logger.info(
-            f"HiroUSTProcessor Init with tempo={config.tempo}, scale={config.scale}"
-        )
-
-        self._generator = None
-        self._phonemizer = None
+    def __init__(self, config: GeneratorConfig | None = None):
+        self.config = config or GeneratorConfig()
+        self._generator = HiroUSTGenerator()
+        self._phonemizer = Phonemizer()
         self._melody_brain = None
 
     @property
     def generator(self):
-        if self._generator is None:
-            from hiro_ust.converter import HiroUSTGenerator
-
-            self._generator = HiroUSTGenerator()
         return self._generator
 
     @property
     def phonemizer(self):
-        if self._phonemizer is None:
-            from hiro_ust.converter import Phonemizer
-
-            self._phonemizer = Phonemizer()
         return self._phonemizer
 
     @property
     def melody_brain(self):
         if self._melody_brain is None:
-            from hiro_ust.melody import MelodyBrain
-
             self._melody_brain = MelodyBrain(seed=self.config.seed)
         return self._melody_brain
 
     def process_lyrics(
-        self, lyrics: str, project_name: str = "Hiro_Main", output_format: str = "ust"
+        self,
+        lyrics: str,
+        project_name: str = "Hiro_Main",
+        output_format: str = "ust",
     ) -> str:
-        """
-        Process lyrics and Gen UST/USTX content.
-
-        Args:
-            lyrics: Input lyrics (hiragana, katakana, or romaji)
-            project_name: Project name for UST metadata
-            output_format: "ust" or "ustx"
-
-        Returns:
-            Complete UST/USTX file content as string
-
-        Raises:
-            ValueError: If output_format is invalid
-            RuntimeError: If processing fails
-        """
-        if output_format not in ("ust", "ustx"):
+        """Convert lyrics to UST or USTX using the configured engine."""
+        if output_format not in {"ust", "ustx"}:
             raise ValueError(f"Invalid output format: {output_format}")
+        if not isinstance(lyrics, str) or not lyrics.strip():
+            raise ValueError("lyrics must be a non-empty string")
 
         try:
-            logger.info(f"Processing lyrics: {lyrics[:50]}...")
+            from .hiro_ust_dev import parse_song_structure, text_to_ustx
 
-            from hiro_ust.hiro_ust_dev import (
-                parse_song_structure,
-                text_to_ustx,
-                HiroUSTGenerator,
-            )
-            from hiro_ust.melody.melody_logic import MelodyBrain
-
-            phonemizer = None
-            try:
-                phonemizer = self.phonemizer
-            except Exception:
-                phonemizer = None
-
-            melody_brain = self.melody_brain
-
-            parts, elements = parse_song_structure(
+            _, elements = parse_song_structure(
                 lyrics,
-                (
-                    HiroConfig.PAUSE_LINE_UNIT * 2
-                    if hasattr(HiroConfig, "PAUSE_LINE_UNIT")
-                    else 960
-                ),
-                (
-                    HiroConfig.PAUSE_SECTION_UNIT * 2
-                    if hasattr(HiroConfig, "PAUSE_SECTION_UNIT")
-                    else 1920
-                ),
-                on_warning=lambda msg: logger.warning(msg),
-                phonemizer=phonemizer,
+                HiroConfig.PAUSE_LINE_UNIT * 2,
+                HiroConfig.PAUSE_SECTION_UNIT * 2,
+                on_warning=lambda msg: __import__("logging").getLogger(__name__).warning(msg),
+                phonemizer=self.phonemizer,
             )
-
-            logger.debug(f"Parsed elements: {len(elements)} items")
 
             if output_format == "ustx":
-                ustx = text_to_ustx(
+                return text_to_ustx(
                     elements,
                     project_name,
-                    float(self.config.tempo),
-                    (
-                        int(self.config.base_length)
-                        if hasattr(self.config, "base_length")
-                        else 240
-                    ),
-                    (
-                        KEY_ROOTS.get(self.config.voice, 60)
-                        if hasattr(self.config, "voice")
-                        else 60
-                    ),
-                    (
-                        self.config.scale
-                        if hasattr(self.config, "scale")
-                        else next(iter(SCALES))
-                    ),
-                    (
-                        self.config.intone
-                        if hasattr(self.config, "intone")
-                        else "Medium (2)"
-                    ),
-                    (
-                        float(self.config.length_var)
-                        if hasattr(self.config, "length_var")
-                        else 0.3
-                    ),
-                    (
-                        float(self.config.stretch_prob)
-                        if hasattr(self.config, "stretch_prob")
-                        else 0.25
-                    ),
-                    melody_brain,
+                    self.config.tempo,
+                    self.config.base_length,
+                    self.config.effective_root_key,
+                    self.config.scale,
+                    self.config.intone_level,
+                    self.config.length_var,
+                    self.config.stretch_prob,
+                    self.melody_brain,
                 )
-                logger.info("Lyrics processing complete (ustx)")
-                return ustx
 
-            from hiro_ust.hiro_ust_dev import HiroUSTGenerator, USTWriter
-
-            generator = HiroUSTGenerator()
-            writer = USTWriter(
-                project_name=project_name, tempo=float(self.config.tempo)
-            )
-
-            root_key = (
-                KEY_ROOTS.get(self.config.voice, 60)
-                if hasattr(self.config, "voice")
-                else 60
-            )
-
+            writer = USTWriter(project_name=project_name, tempo=self.config.tempo)
+            root_key = self.config.effective_root_key
             for element in elements:
                 if element.startswith("PAUSE_WORD:"):
-                    writer.add_rest(int(element.split(":")[1]))
-                    continue
-                if element.startswith("PAUSE_LINE:"):
-                    writer.add_rest(
-                        HiroConfig.PAUSE_LINE_UNIT
-                        if hasattr(HiroConfig, "PAUSE_LINE_UNIT")
-                        else 480
-                    )
-                    continue
-                if element == "っ":
+                    writer.add_rest(int(element.split(":", 1)[1]))
+                elif element.startswith("PAUSE_LINE:"):
+                    writer.add_rest(HiroConfig.PAUSE_LINE_UNIT)
+                elif element == "っ":
                     writer.add_small_tsu(root_key)
-                    continue
-                hir = generator.romaji_to_hiragana(element)
-                writer.add_note(
-                    length=(
-                        HiroConfig.MIN_NOTE_LEN
-                        if hasattr(HiroConfig, "MIN_NOTE_LEN")
-                        else 120
-                    ),
-                    lyric=hir,
-                    note_num=root_key,
-                    pre_utter=25,
-                    voice_overlap=10,
-                    intensity=80,
-                    envelope=(
-                        HiroConfig.DEFAULT_ENVELOPE
-                        if hasattr(HiroConfig, "DEFAULT_ENVELOPE")
-                        else "0,10,35,0,100,100,0"
-                    ),
-                )
+                else:
+                    writer.add_note(
+                        length=HiroConfig.MIN_NOTE_LEN,
+                        lyric=self.generator.romaji_to_hiragana(element),
+                        note_num=root_key,
+                        pre_utter=self.config.pre_utterance,
+                        voice_overlap=self.config.voice_overlap,
+                        intensity=self.config.intensity_base,
+                        envelope=HiroConfig.DEFAULT_ENVELOPE,
+                    )
+            return writer.finalize()
+        except Exception as exc:
+            raise RuntimeError(f"Lyrics processing failed: {exc}") from exc
 
-            ust = writer.finalize()
-            logger.info("Lyrics processing complete (ust)")
-            return ust
-
-        except Exception as e:
-            logger.error(f"Failed to process lyrics: {e}")
-            raise RuntimeError(f"Lyrics processing failed: {e}") from e
-
-    def get_supported_scales(self) -> list:
-        from hiro_ust.melody import SCALES
-
+    def get_supported_scales(self) -> list[str]:
         return list(SCALES.keys())
 
-    def get_supported_envelopes(self) -> list:
-        """
-        Get list of supported envelope presets.
-
-        Returns:
-            List of envelope preset names
-        """
-        from hiro_ust.voice import get_envelope_presets
-
-        return list(get_envelope_presets().keys())
+    def get_supported_envelopes(self) -> list[str]:
+        try:
+            from .voice.presets import ENVELOPE_PRESETS
+            return list(ENVELOPE_PRESETS.keys())
+        except ImportError:
+            return []
 
 
-__all__ = [
-    "HiroUSTProcessor",
-    "GeneratorConfig",
-]
+__all__ = ["HiroUSTProcessor", "GeneratorConfig"]
