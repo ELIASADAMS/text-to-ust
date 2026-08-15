@@ -27,22 +27,17 @@ class USTWriter:
 
     def add_note(self, length: int, lyric: str, note_num: float, pre_utter: int, voice_overlap: int,
                  intensity: int, envelope: str, pbs: str | int = 0, pbw: str | int = 0,
-                 flags: str = "") -> None:
-        """Add a note. Fractional MIDI pitches are converted to UTAU pitch bends."""
-        rounded = int(round(float(note_num)))
-        fraction = float(note_num) - rounded
+                 flags: str = "", pby: str | int = 0, pbm: str = ",") -> None:
+        """Add a note, converting fractional MIDI pitches into UTAU PBY data."""
+        pitch = float(note_num)
+        rounded = int(round(pitch))
+        fraction = pitch - rounded
         if abs(fraction) > 1e-9 and (pbs == 0 or pbs == "0"):
-            # UTAU PBS=50 corresponds to a 100-cent range; 0.5 semitone = 25 units.
-            bend = int(round(fraction * 50))
             pbs = "0;0"
-            pbw = f"10"
-            # PBY is not emitted by this compact writer; the two-point bend is sufficient.
-            flags = flags
-            bend_curve = f"{bend}"
-        else:
-            bend_curve = None
+            pbw = "10"
+            pby = str(int(round(fraction * 50)))
 
-        block = NOTE_BLOCK_TEMPLATE.format(
+        self.lines.append(NOTE_BLOCK_TEMPLATE.format(
             note_id=self.note_id,
             length=int(length),
             lyric=lyric,
@@ -51,13 +46,10 @@ class USTWriter:
             voice_overlap=int(voice_overlap),
             intensity=int(intensity),
             envelope=envelope,
+            flags=flags,
             pbs=str(pbs),
             pbw=str(pbw),
-            flags=flags,
-        )
-        if bend_curve is not None:
-            block = block.replace("\n[Flags]", f"\n[PBY]\n{bend_curve}\n[Flags]")
-        self.lines.append(block)
+        ).replace("PBY=0", f"PBY={pby}").replace("PBM=,", f"PBM={pbm}"))
         self.note_id += 1
 
     def finalize(self) -> str:
