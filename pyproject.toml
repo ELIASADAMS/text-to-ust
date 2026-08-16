@@ -1,10 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "hiro-ust"
-version = "0.0.0"
+version = "0.3.0"
+description = "Procedural Japanese lyric to UTAU UST generator"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Ilya Minin (Eli)" }]
+dependencies = [
+  "numpy>=1.26.0",
+  "PyYAML>=6.0",
+]
 
-[tool.poetry]
-packages = [{ include = "hiro_ust", from = "src" }]
+[project.scripts]
+hiro-ust = "hiro_ust.cli:main"
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 packages = { find = { where = ["src"] } }
-
+include-package-data = true
