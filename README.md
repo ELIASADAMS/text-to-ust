@@ -6,13 +6,11 @@ Hiro is designed as a **generative starting-point and tuning assistant**: instea
 
 > Built by Ilya Minin (Eli) — artist, creative technologist, and generative-audio developer.
 
----
-
 ## Run Hiro
 
 ### PyCharm
 
-Open the repository root and configure a **Python** run configuration with:
+Open the repository root and configure a Python run configuration with:
 
 ```text
 Module name: hiro_ust
@@ -55,32 +53,6 @@ The resulting executable is:
 dist/Hiro_UST_Generator.exe
 ```
 
----
-
-## What Hiro does
-
-Hiro takes Japanese lyrics written in Hiragana/Katakana or supported Romaji forms and generates a UST with:
-
-- mora-aware lyric parsing
-- yōon such as `きゃ`, `しゅ`, `ちょ`
-- small-tsu gemination `っ`
-- moraic nasal `ん`
-- phrase and section boundaries
-- procedural pitch selection
-- scale-aware melody generation
-- voice-range constraints
-- motif reuse and variation
-- deterministic seeded generation
-- timing variation
-- intensity/dynamics heuristics
-- Japanese pitch-accent-aware behavior
-- optional microtonal pitch-bend expression
-- UST serialization
-
-The project is intentionally **procedural rather than fully AI-generated**. The same seed can reproduce a generation, making musical experiments and algorithm changes easier to compare.
-
----
-
 ## Project structure
 
 ```text
@@ -121,7 +93,27 @@ Do not launch individual internal modules as the application. Use:
 python -m hiro_ust
 ```
 
----
+## What Hiro does
+
+Hiro takes Japanese lyrics written in Hiragana/Katakana or supported Romaji forms and generates a UST with:
+
+- mora-aware lyric parsing
+- yōon such as `きゃ`, `しゅ`, `ちょ`
+- small-tsu gemination `っ`
+- moraic nasal `ん`
+- phrase and section boundaries
+- procedural pitch selection
+- scale-aware melody generation
+- voice-range constraints
+- motif reuse and variation
+- deterministic seeded generation
+- timing variation
+- intensity/dynamics heuristics
+- Japanese pitch-accent-aware behavior
+- optional microtonal pitch-bend expression
+- UST serialization
+
+The project is intentionally **procedural rather than fully AI-generated**. The same seed can reproduce a generation, making musical experiments and algorithm changes easier to compare.
 
 ## Installation
 
@@ -134,8 +126,6 @@ python -m pip install -e .
 Runtime dependencies are kept in `requirements.txt` / `pyproject.toml`. Development and packaging tools such as PyInstaller are kept in `requirements-dev.txt`.
 
 `tkinter` is normally bundled with standard Python distributions on Windows and macOS; it is not normally installed with `pip`.
-
----
 
 ## Input and phonemization
 
@@ -151,17 +141,9 @@ Examples:
 ん → n
 ```
 
-A mora trie performs longest-match parsing so that:
-
-```text
-きゃ
-```
-
-is recognized as one yōon unit instead of being incorrectly split into `き` and `ゃ`.
+A mora trie performs longest-match parsing so that `きゃ` is recognized as one yōon unit instead of being incorrectly split into `き` and `ゃ`.
 
 Punctuation such as `、`, `。`, `！`, `？`, and `…` is preserved because it can carry musical phrase information.
-
----
 
 ## Melody generation
 
@@ -183,8 +165,6 @@ Hiro can remember short melodic ideas and reuse them later. Motifs are represent
 
 The seed controls procedural choices, making it possible to reproduce a result for debugging and algorithm comparison.
 
----
-
 ## Expression
 
 Expression can include pitch bends, microtonal offsets, intensity, envelopes, pre-utterance, voice overlap, and timing variation.
@@ -193,15 +173,11 @@ UST stores integer MIDI note numbers, so fractional pitches such as `60.5` must 
 
 Vibrato is intended to become context-dependent rather than being applied indiscriminately to every note.
 
----
-
 ## Current limitations
 
 Hiro is a **procedural generator and starting point**, not a replacement for a professional human UTAU tuner.
 
 Current development areas include deeper Japanese pitch-accent modeling, richer phrase-level melody decisions, stronger voicebank-specific phonetic handling, intelligent vibrato/portamento, and extraction of the remaining legacy logic from `hiro_ust_dev.py`.
-
----
 
 ## Documentation
 
