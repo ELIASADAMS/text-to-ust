@@ -1,14 +1,15 @@
-__version__ = "0.2.0"
-__author__ = "Hiro UST Project"
+"""Public package API for Hiro UST."""
+
+__version__ = "0.3.0"
+__author__ = "Ilya Minin (Eli)"
 
 
 def __getattr__(name: str):
-    """
-    Lazy import Attr to avoid circular imports.
-    """
+    """Lazy-load public objects to keep package imports lightweight."""
     imports_map = {
         "HiroUSTProcessor": ("core", "HiroUSTProcessor"),
-        "GeneratorConfig": ("core", "GeneratorConfig"),
+        "GeneratorConfig": ("config", "GeneratorConfig"),
+        "HiroConfig": ("config", "HiroConfig"),
         "get_logger": ("logger", "get_logger"),
         "logger": ("logger", "logger"),
         "HiroUSTGenerator": ("converter", "HiroUSTGenerator"),
@@ -25,69 +26,40 @@ def __getattr__(name: str):
         "AccentAnalyzer": ("voice", "AccentAnalyzer"),
         "VowelHarmony": ("voice", "VowelHarmony"),
         "PhoneticNormalizer": ("voice", "PhoneticNormalizer"),
-        "FileDialog": ("ui", "FileDialog"),
-        "SaveDialog": ("ui", "SaveDialog"),
-        "DialogMessages": ("ui", "DialogMessages"),
-        "LabeledEntry": ("ui", "LabeledEntry"),
-        "LabeledSpinbox": ("ui", "LabeledSpinbox"),
-        "LabeledCombobox": ("ui", "LabeledCombobox"),
-        "LabeledScale": ("ui", "LabeledScale"),
-        "CheckbuttonGroup": ("ui", "CheckbuttonGroup"),
-        "ParamPanel": ("ui", "ParamPanel"),
-        "ProgressBar": ("ui", "ProgressBar"),
-        "PresetManager": ("ui", "PresetManager"),
-        "USTGeneratorApp": ("ui", "USTGeneratorApp"),
-        "run_gui": ("ui", "main"),
+        "USTGeneratorApp": ("cli", "USTGeneratorApp"),
+        "run_gui": ("cli", "main"),
     }
-
-    if name in imports_map:
-        module_name, attr_name = imports_map[name]
-        module = __import__(f"hiro_ust.{module_name}", fromlist=[attr_name])
-        attr = getattr(module, attr_name)
-        globals()[name] = attr
-        return attr
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name not in imports_map:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = imports_map[name]
+    module = __import__(f"hiro_ust.{module_name}", fromlist=[attr_name])
+    attr = getattr(module, attr_name)
+    globals()[name] = attr
+    return attr
 
 
 __all__ = [
     "__version__",
-    # Core API
+    "__author__",
     "HiroUSTProcessor",
     "GeneratorConfig",
-    # Logging
+    "HiroConfig",
     "get_logger",
     "logger",
-    # Converter
     "HiroUSTGenerator",
     "Phonemizer",
-    # Generator
     "USTWriter",
     "NoteGenerator",
     "PitchBendCalculator",
     "EnvelopeCalculator",
-    # Melody
     "MelodyBrain",
     "SCALES",
-    # Voice & Phonetics
     "KEY_ROOTS",
     "ENVELOPE_PRESETS",
     "MoraAnalyzer",
     "AccentAnalyzer",
     "VowelHarmony",
     "PhoneticNormalizer",
-    # UI Components
-    "FileDialog",
-    "SaveDialog",
-    "DialogMessages",
-    "LabeledEntry",
-    "LabeledSpinbox",
-    "LabeledCombobox",
-    "LabeledScale",
-    "CheckbuttonGroup",
-    "ParamPanel",
-    "ProgressBar",
-    "PresetManager",
     "USTGeneratorApp",
     "run_gui",
 ]
