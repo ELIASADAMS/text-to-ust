@@ -1,25 +1,31 @@
-"""CLI entrypoint for Hiro UST."""
+"""Canonical GUI entry point for Hiro UST."""
+
+from __future__ import annotations
 
 import sys
-from pathlib import Path
 import tkinter as tk
 
-root = Path(__file__).resolve().parents[1]
-if str(root) not in sys.path:
-    sys.path.insert(0, str(root))
-
-from hiro_ust.hiro_ust_dev import USTGeneratorApp, HiroConfig
+from .hiro_ust_dev import USTGeneratorApp
 
 
-def main(argv=None, debug=False):
-    argv = argv or sys.argv[1:]
-    root_tk = tk.Tk()
-    app = USTGeneratorApp(root_tk)
+def main(argv=None, debug: bool = False):
+    """Start the Hiro GUI.
+
+    The ``hiro_ust_dev`` module currently contains the working legacy GUI
+    implementation. This module is the stable public launcher so callers do
+    not need to know that internal filename.
+    """
+    _ = argv if argv is not None else sys.argv[1:]
+    root = tk.Tk()
+    app = USTGeneratorApp(root)
     if debug:
-        print("[hiro_ust.cli] GUI Init (debug mode)")
+        print("[hiro_ust] GUI initialized (debug mode)")
         return app
+    root.mainloop()
+    return None
 
-    root_tk.mainloop()
+
+__all__ = ["main", "USTGeneratorApp"]
 
 
 if __name__ == "__main__":
