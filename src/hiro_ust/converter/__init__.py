@@ -1,75 +1,44 @@
-"""
-Text and phoneme conversion module.
+"""Text and phoneme conversion utilities."""
 
-"""
+from __future__ import annotations
 
-from .mora_trie import build_mora_trie, MORA_DATA
-
-try:
-    from hiro_ust.hiragana_map import HIRAGANA_MAP
-    from hiro_ust.kana_to_hiragana import convert_lyrics
-    from hiro_ust.phonemizer import Phonemizer
-except ImportError as e:
-    # Fallback
-    HIRAGANA_MAP = {}
-    convert_lyrics = lambda x: x
-    Phonemizer = None
-
-from hiro_ust.logger import get_logger
+from .hiragana_map import HIRAGANA_MAP
+from .kana_to_hiragana import convert_lyrics
+from .mora_trie import MORA_DATA, build_mora_trie
+from .phonemizer import Phonemizer
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class HiroUSTGenerator:
+    """Mora-aware Japanese text converter used by the Hiro pipeline."""
 
-    _instance = None
+    _instance: "HiroUSTGenerator | None" = None
 
     def __new__(cls):
-        """Ensure singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            # Import here to avoid circular imports
-            from hiro_ust.hiragana_map import HIRAGANA_MAP as hmap
-
-            cls._instance.hiragana_map = hmap
+            cls._instance.hiragana_map = HIRAGANA_MAP
             cls._instance.mora_trie = build_mora_trie()
             logger.debug("HiroUSTGenerator singleton created")
         return cls._instance
 
     def romaji_to_hiragana(self, phoneme: str) -> str:
-        """
-        Convert romaji phoneme to hiragana character.
-
-        Args:
-            phoneme: Romaji string (e.g., 'ka', 'ji_s', 'ji_t')
-
-        Returns:
-            Hiragana character or original phoneme if not found
-        """
-        if phoneme.startswith("kk") or phoneme.startswith("gg"):
+        """Convert a supported romaji phoneme to kana."""
+        if phoneme.startswith(("kk", "gg")):
             return self.hiragana_map.get(phoneme, phoneme)
-        if phoneme in ["ji", "zu"]:
+        if phoneme in {"ji", "zu"}:
             return self.hiragana_map.get("ji_s", phoneme)
         if phoneme == "ji_t":
             return self.hiragana_map.get("ji_t", phoneme)
         return self.hiragana_map.get(phoneme, phoneme)
 
-    def hiragana_to_romaji(self, text: str) -> list:
-        """
-        Convert hiragana/katakana text to list of romaji phonemes.
-
-        Args:
-            text: Hiragana or katakana text string
-
-        Returns:
-            List of romaji phoneme strings
-        """
-        from hiro_ust.kana_to_hiragana import convert_lyrics as convert
-
-        phonemes = []
+    def hiragana_to_romaji(self, text: str) -> list[str]:
+        """Convert Japanese kana into mora/phoneme tokens using longest match."""
+        text = convert_lyrics(text.strip())
+        phonemes: list[str] = []
         i = 0
-        text = text.strip()
-        text = convert(text)
 
         while i < len(text):
             node = self.mora_trie
@@ -80,27 +49,25 @@ class HiroUSTGenerator:
             while i < len(text) and text[i] in node:
                 node = node[text[i]]
                 i += 1
-
-                if "end" in node and node["end"]:
+                if node.get("end"):
                     best_match = node
                     best_end = i
 
-            if best_match and best_match["end"]:
+            if best_match is not None:
                 phonemes.extend(best_match["phones"])
                 i = best_end
+                continue
+
+            char = text[start]
+            if char == "っ":
+                phonemes.append("っ")
+            elif char in "。、「」『』！？,，、…" or char.isspace():
+                phonemes.append(char)
             else:
-                char = text[start]
-                if char == "っ":  # Sokuon (small tsu = gemination)
-                    phonemes.append("っ")
-                    i = start + 1
-                else:
-                    i = start + 1
+                logger.warning("Unrecognized kana character: %r", char)
+            i = start + 1
 
         return phonemes
 
 
-__all__ = [
-    "HiroUSTGenerator",
-    "Phonemizer",
-    "MORA_DATA",
-]
+__all__ = ["HiroUSTGenerator", "Phonemizer", "MORA_DATA"]
