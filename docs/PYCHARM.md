@@ -11,7 +11,7 @@
 python -m pip install -e .
 ```
 
-For development and building the EXE:
+For development and EXE building:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -40,11 +40,11 @@ python -m hiro_ust
 
 ## Alternative
 
-You can run `src/hiro_ust/__main__.py` directly, but the module configuration is preferred because it follows the package layout and does not depend on PyCharm changing `sys.path` for a single source file.
+You can run `src/hiro_ust/__main__.py` directly, but the module configuration is preferred because it follows the package layout and avoids path differences between IDEs and terminals.
 
 ## Common mistake
 
-Do not use these as the normal application entry points:
+Do not use these as normal application entry points:
 
 ```text
 src/hiro_ust/core.py
@@ -52,4 +52,20 @@ src/hiro_ust/hiro_ust_dev.py
 src/hiro_ust/cli.py
 ```
 
-`core.py` is the programmatic API, while `cli.py` and the internal legacy engine are implementation details.
+`core.py` is the programmatic API. `cli.py` is the launcher implementation. `hiro_ust_dev.py` is legacy/internal runtime code that is still being migrated out of the package.
+
+## Building the EXE from PyCharm
+
+Open `build_exe.py` and run it with the same project interpreter.
+
+Or use the PyCharm terminal:
+
+```bash
+python build_exe.py
+```
+
+The executable is written to:
+
+```text
+dist/Hiro_UST_Generator.exe
+```
